@@ -167,7 +167,13 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
      [False False  True]]
     """
 
-    valid_methods_ = ["naive", "score", "cumulated_score", "top_k", "raps"]
+    valid_methods_ = ["naive",
+                      "score",
+                      "cumulated_score",
+                      "top_k",
+                      "raps",
+                      "mondrian"
+                      ]
     fit_attributes = [
         "single_estimator_",
         "estimators_",
@@ -1020,7 +1026,11 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
 
         X, y = indexable(X, y)
         y = _check_y(y)
-        assert type_of_target(y) == "multiclass"
+        if type_of_target(y) != "multiclass" and self.method != "mondrian":
+            raise ValueError(
+                "Invalid method. "
+                "Binary classification problems require the mondrian method. "
+            )
         sample_weight, X, y = check_null_weight(sample_weight, X, y)
         y = cast(NDArray, y)
         n_samples = _num_samples(y)
@@ -1094,6 +1104,9 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
             self.conformity_scores_ = np.take_along_axis(
                 1 - y_pred_proba, y.reshape(-1, 1), axis=1
             )
+        elif self.method == "mondrian":
+            self.conformity_scores_ = 1-y_pred_proba
+
         elif self.method in ["cumulated_score", "raps"]:
             self.conformity_scores_, self.cutoff = (
                 self._get_true_label_cumsum_proba(
@@ -1272,11 +1285,20 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                         self.conformity_scores_regularized,
                         alpha_np
                     )
+                elif self.method == "mondrian":
+
+                    self.quantiles_ = compute_quantiles(
+                        self.conformity_scores_,
+                        alpha_np,
+                        mondrian=True
+                    )
                 else:
+
                     self.quantiles_ = compute_quantiles(
                         self.conformity_scores_,
                         alpha_np
                     )
+
             else:
                 self.quantiles_ = (n + 1) * (1 - alpha_np)
 
@@ -1369,6 +1391,14 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 - y_pred_proba_last,
                 -EPSILON
             )
+        elif self.method == "mondrian":
+            self.quantiles_ = np.transpose(self.quantiles_, [1, 0])
+
+            prediction_sets = np.greater_equal(
+                y_pred_proba - (1 - self.quantiles_),
+                -EPSILON
+            )
+
         else:
             raise ValueError(
                 "Invalid method. "

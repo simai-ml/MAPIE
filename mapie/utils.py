@@ -616,7 +616,9 @@ def check_alpha_and_last_axis(vector: NDArray, alpha_np: NDArray):
         return vector, alpha_np
 
 
-def compute_quantiles(vector: NDArray, alpha: NDArray) -> NDArray:
+def compute_quantiles(vector: NDArray,
+                      alpha: NDArray,
+                      mondrian=False) -> NDArray:
     """Compute the desired quantiles of a vector.
 
     Parameters
@@ -634,15 +636,23 @@ def compute_quantiles(vector: NDArray, alpha: NDArray) -> NDArray:
         Quantiles of the vector.
     """
     n = len(vector)
-    if len(vector.shape) <= 2:
+    if len(vector.shape) <= 2 and not mondrian:
+        quantiles_ = np.stack([
+                    np_quantile(
+                        vector,
+                        ((n + 1) * (1 - _alpha)) / n,
+                        method="higher"
+                    ) for _alpha in alpha
+        ])
+    elif len(vector.shape) <= 2 and mondrian:
         quantiles_ = np.stack([
                     np_quantile(
                         vector,
                         ((n + 1) * (1 - _alpha)) / n,
                         method="higher",
+                        axis=0
                     ) for _alpha in alpha
         ])
-
     else:
         check_alpha_and_last_axis(vector, alpha)
         quantiles_ = np.stack(

@@ -19,7 +19,7 @@ doc/datasets/generated/
 doc/generated/
 
 # Distribution / packaging
-
+mapieenv
 .Python
 env/
 build/
