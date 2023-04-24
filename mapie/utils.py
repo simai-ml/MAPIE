@@ -321,7 +321,7 @@ def check_n_features_in(
 
 
 def check_alpha_and_n_samples(
-    alphas: Union[Iterable[float], float],
+    alphas: Iterable[float],
     n: int,
 ) -> None:
     """
@@ -354,8 +354,6 @@ def check_alpha_and_n_samples(
     Number of samples of the score is too low,
     1/alpha (or 1/(1 - alpha)) must be lower than the number of samples.
     """
-    if isinstance(alphas, float):
-        alphas = np.array([alphas])
     for alpha in alphas:
         if n < 1 / alpha or n < 1 / (1 - alpha):
             raise ValueError(

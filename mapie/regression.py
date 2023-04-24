@@ -639,7 +639,7 @@ class MapieRegressor(BaseEstimator, RegressorMixin):
 
         Parameters
         ----------
-        X : ArrayLike of shape (n_samples, n_features)
+        X: ArrayLike of shape (n_samples, n_features)
             Test data.
 
         ensemble: bool
@@ -680,16 +680,15 @@ class MapieRegressor(BaseEstimator, RegressorMixin):
         # Checks
         check_is_fitted(self, self.fit_attributes)
         self._check_ensemble(ensemble)
-        alpha = cast(Optional[NDArray], check_alpha(alpha))
 
         y_pred = self.single_estimator_.predict(X)
-        n = len(self.conformity_scores_)
 
         if alpha is None:
             return np.array(y_pred)
 
-        alpha_np = cast(NDArray, alpha)
-        check_alpha_and_n_samples(alpha_np, n)
+        n_samples = len(self.conformity_scores_)
+        alpha_np = cast(NDArray, check_alpha(alpha))
+        check_alpha_and_n_samples(alpha_np, n_samples)
 
         if self.method in self.no_agg_methods_ \
                 or self.cv in self.no_agg_cv_:

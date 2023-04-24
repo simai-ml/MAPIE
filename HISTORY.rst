@@ -5,6 +5,7 @@ History
 ##### (##########)
 ------------------
 
+* Add cross conformal option for quantile regression
 * Add split conformal option for regression and classification
 * Update check method for calibration
 

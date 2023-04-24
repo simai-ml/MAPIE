@@ -4,20 +4,24 @@ import warnings
 from typing import Iterable, List, Optional, Tuple, Union, cast
 
 import numpy as np
+from joblib import Parallel, delayed
 from sklearn.base import RegressorMixin, clone
 from sklearn.linear_model import QuantileRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import BaseCrossValidator, ShuffleSplit
 from sklearn.pipeline import Pipeline
-from sklearn.utils import check_random_state
 from sklearn.utils.validation import (_check_y, _num_samples, check_is_fitted,
                                       indexable)
 
-from ._compatibility import np_quantile
+from ._compatibility import np_nanquantile
 from ._typing import ArrayLike, NDArray
+from .aggregation_functions import aggregate_all
+from .conformity_scores import ConformityScore
 from .regression import MapieRegressor
-from .utils import (check_alpha_and_n_samples,
+from .utils import (check_alpha, check_alpha_and_n_samples,
+                    check_conformity_score, check_cv,
                     check_defined_variables_predict_cqr,
                     check_estimator_fit_predict, check_lower_upper_bounds,
+                    check_n_features_in, check_nan_in_aposteriori_prediction,
                     check_null_weight, fit_estimator)
 
 
@@ -25,8 +29,7 @@ class MapieQuantileRegressor(MapieRegressor):
     """
     This class implements the conformalized quantile regression strategy
     as proposed by Romano et al. (2019) to make conformal predictions.
-    The only valid ``method`` is "quantile" and the only valid default
-    ``cv`` is "split".
+    The valid ``method`` and ``cv`` are the same as for MapieRegressor.
 
     Parameters
     ----------
@@ -35,14 +38,120 @@ class MapieQuantileRegressor(MapieRegressor):
         (i.e. with fit and predict methods), by default ``None``.
         If ``None``, estimator defaults to a ``QuantileRegressor`` instance.
 
-    method: str
-        Method to choose for prediction, in this case, the only valid method
-        is the "quantile" method.
+    method: str, optional
+        Method to choose for prediction interval estimates.
+        Choose among:
 
-    cv: Optional[str]
-        By default the value is set to None. In theory a split method is
-        implemented as it is needed to provided both a training and calibration
-        set.
+        - "naive", based on training set conformity scores,
+        - "base", based on validation sets conformity scores,
+        - "plus", based on validation conformity scores and
+          testing predictions,
+        - "minmax", based on validation conformity scores and
+          testing predictions (min/max among cross-validation clones).
+
+        By default ``"plus"``.
+
+    cv: Optional[Union[int, str, BaseCrossValidator]]
+        The cross-validation strategy for computing conformity scores.
+        It directly drives the distinction between jackknife and cv variants.
+        Choose among:
+
+        - ``None``, to use the default 5-fold cross-validation
+        - integer, to specify the number of folds.
+          If equal to 1, does not involve cross-validation but a division
+          of the data into training and calibration subsets. The splitter
+          used is the following: ``sklearn.model_selection.ShuffleSplit``.
+        - CV splitter: any ``sklearn.model_selection.BaseCrossValidator``
+          Main variants are:
+          - ``sklearn.model_selection.LeaveOneOut`` (jackknife),
+          - ``sklearn.model_selection.KFold`` (cross-validation),
+          - ``subsample.Subsample`` object (bootstrap).
+        - ``"split"``, does not involve cross-validation but a division
+          of the data into training and calibration subsets. The splitter
+          used is the following: ``sklearn.model_selection.ShuffleSplit``.
+        - ``"prefit"``, assumes that ``estimator`` has been fitted already,
+          and the ``method`` parameter is ignored.
+          All data provided in the ``fit`` method is then used
+          for computing conformity scores only.
+          At prediction time, quantiles of these conformity scores are used
+          to provide a prediction interval with fixed width.
+          The user has to take care manually that data for model fitting and
+          conformity scores estimate are disjoint.
+
+        By default ``None``.
+
+    test_size: Optional[Union[int, float]]
+        If float, should be between 0.0 and 1.0 and represent the proportion
+        of the dataset to include in the test split. If int, represents the
+        absolute number of test samples. If None, it will be set to 0.1.
+
+        If cv is not ``"split"``, ``test_size`` is ignored.
+
+        By default ``None``.
+
+    n_jobs: Optional[int]
+        Number of jobs for parallel processing using joblib
+        via the "locky" backend.
+        If ``-1`` all CPUs are used.
+        If ``1`` is given, no parallel computing code is used at all,
+        which is useful for debugging.
+        For n_jobs below ``-1``, ``(n_cpus + 1 - n_jobs)`` are used.
+        None is a marker for `unset` that will be interpreted as ``n_jobs=1``
+        (sequential execution).
+
+        By default ``None``.
+
+    agg_function : str
+        Determines how to aggregate predictions from perturbed models, both at
+        training and prediction time.
+
+        If ``None``, it is ignored except if cv class is ``Subsample``,
+        in which case an error is raised.
+        If "mean" or "median", returns the mean or median of the predictions
+        computed from the out-of-folds models.
+        Note: if you plan to set the ``ensemble`` argument to ``True`` in the
+        ``predict`` method, you have to specify an aggregation function.
+        Otherwise an error would be raised.
+
+        The Jackknife+ interval can be interpreted as an interval around the
+        median prediction, and is guaranteed to lie inside the interval,
+        unlike the single estimator predictions.
+
+        When the cross-validation strategy is Subsample (i.e. for the
+        Jackknife+-after-Bootstrap method), this function is also used to
+        aggregate the training set in-sample predictions.
+
+        If cv is ``"prefit"`` or ``"split"``, ``agg_function`` is ignored.
+
+        By default ``"mean"``.
+
+    verbose : int, optional
+        The verbosity level, used with joblib for multiprocessing.
+        The frequency of the messages increases with the verbosity level.
+        If it more than ``10``, all iterations are reported.
+        Above ``50``, the output is sent to stdout.
+
+        By default ``0``.
+
+    conformity_score : Optional[ConformityScore]
+        ConformityScore instance.
+        It defines the link between the observed values, the predicted ones
+        and the conformity scores. For instance, the default None value
+        correspondonds to a conformity score which assumes
+        y_obs = y_pred + conformity_score.
+
+        - ``None``, to use the default ``AbsoluteConformityScore`` conformity
+          score
+        - ConformityScore: any ``ConformityScore`` class
+
+        By default ``None``.
+
+    random_state: Optional[Union[int, RandomState]]
+        Pseudo random number generator state used for random uniform sampling
+        for evaluation quantiles and prediction sets in cumulated_score.
+        Pass an int for reproducible output across multiple function calls.
+
+        By default ``None``.
 
     alpha: float
         Between 0 and 1.0, represents the risk level of the confidence
@@ -51,7 +160,7 @@ class MapieQuantileRegressor(MapieRegressor):
         intervals.
         ``alpha`` is the complement of the target coverage level.
 
-        By default 0.1.
+        By default ``0.1``.
 
     Attributes
     ----------
@@ -74,9 +183,6 @@ class MapieQuantileRegressor(MapieRegressor):
             quantile of 1 - alpha/2
             - [:, 2]: maximum of those first two scores
 
-    n_calib_samples: int
-        Number of samples in the calibration dataset.
-
     References
     ----------
     Yaniv Romano, Evan Patterson and Emmanuel J. Candès.
@@ -87,32 +193,35 @@ class MapieQuantileRegressor(MapieRegressor):
     --------
     >>> import numpy as np
     >>> from mapie.quantile_regression import MapieQuantileRegressor
-    >>> X_train = np.array([[0], [1], [2], [3], [4], [5]])
-    >>> y_train = np.array([5, 7.5, 9.5, 10.5, 12.5, 15])
-    >>> X_calib = np.array([[0], [1], [2], [3], [4], [5], [6], [7], [8], [9]])
-    >>> y_calib = np.array([5, 7, 9, 4, 8, 1, 5, 7.5, 9.5, 12])
-    >>> mapie_reg = MapieQuantileRegressor().fit(
-    ...     X_train,
-    ...     y_train,
-    ...     X_calib=X_calib,
-    ...     y_calib=y_calib
-    ... )
-    >>> y_pred, y_pis = mapie_reg.predict(X_train)
+    >>> X = np.array([[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10]])
+    >>> y = np.array([5, 7.5, 9.5, 10.5, 12.5, 15, 16, 17.5, 18.5, 20, 21])
+    >>> mapie_reg = MapieQuantileRegressor(alpha=0.25, random_state=42)
+    >>> mapie_reg = mapie_reg.fit(X, y)
+    >>> y_pred, y_pis = mapie_reg.predict(X, alpha=0.25)
     >>> print(y_pis[:, :, 0])
-    [[-8.16666667 19.        ]
-     [-6.33333333 20.83333333]
-     [-4.5        22.66666667]
-     [-2.66666667 24.5       ]
-     [-0.83333333 26.33333333]
-     [ 1.         28.16666667]]
+    [[ 5.          6.4       ]
+     [ 6.5         8.        ]
+     [ 8.          9.6       ]
+     [ 9.5        11.2       ]
+     [11.         12.9       ]
+     [12.66666667 14.6       ]
+     [14.33333333 16.3       ]
+     [16.         18.        ]
+     [17.66666667 19.7       ]
+     [19.33333333 21.4       ]
+     [21.         23.1       ]]
     >>> print(y_pred)
-    [ 5.  7.  9. 11. 13. 15.]
+    [ 5.92857143  7.5         9.07142857 10.64285714 12.21428571 13.78571429
+     15.35714286 16.92857143 18.5        20.07142857 21.64285714]
     """
-    valid_methods_ = ["quantile"]
     fit_attributes = [
+        "single_estimator_",
+        "single_estimator_alpha_",
         "estimators_",
+        "k_",
         "conformity_scores_",
-        "n_calib_samples",
+        "conformity_score_function_",
+        "n_features_in_",
     ]
 
     quantile_estimator_params = {
@@ -143,15 +252,27 @@ class MapieQuantileRegressor(MapieRegressor):
                 List[Union[RegressorMixin, Pipeline]]
             ]
         ] = None,
-        method: str = "quantile",
-        cv: Optional[str] = None,
+        method: str = "plus",
         alpha: float = 0.1,
+        cv: Optional[Union[int, str, BaseCrossValidator]] = None,
+        test_size: Optional[Union[int, float]] = None,
+        n_jobs: Optional[int] = None,
+        agg_function: Optional[str] = "mean",
+        verbose: int = 0,
+        conformity_score: Optional[ConformityScore] = None,
+        random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
         super().__init__(
             estimator=estimator,
             method=method,
+            cv=cv,
+            test_size=test_size,
+            n_jobs=n_jobs,
+            agg_function=agg_function,
+            verbose=verbose,
+            conformity_score=conformity_score,
+            random_state=random_state
         )
-        self.cv = cv
         self.alpha = alpha
 
     def _check_alpha(
@@ -184,6 +305,7 @@ class MapieQuantileRegressor(MapieRegressor):
         ------
         ValueError
             If alpha is not a float.
+
         ValueError
             If the value of alpha is not between 0 and 1.0.
         """
@@ -234,17 +356,21 @@ class MapieQuantileRegressor(MapieRegressor):
         ------
         ValueError
             If the estimator fit or predict methods.
+
         ValueError
             We check if it's a known estimator that does quantile regression
             according to the dictionnary set quantile_estimator_params.
             This dictionnary will need to be updated with the latest new
             available estimators.
+
         ValueError
             The estimator does not have the "loss_name" in its parameters and
             therefore can not be used as an estimator.
+
         ValueError
             There is no quantile "loss_name" and therefore this estimator
             can not be used as a ``MapieQuantileRegressor``.
+
         ValueError
             The parameter to set the alpha value does not exist in this
             estimator and therefore we cannot use it.
@@ -254,6 +380,11 @@ class MapieQuantileRegressor(MapieRegressor):
                 solver="highs-ds",
                 alpha=0.0,
             )
+
+        if check_cv(self.cv) == "prefit":
+            self._check_prefit_params(estimator)
+            return estimator
+
         check_estimator_fit_predict(estimator)
         if isinstance(estimator, Pipeline):
             self._check_estimator(estimator[-1])
@@ -294,115 +425,10 @@ class MapieQuantileRegressor(MapieRegressor):
                         "The base model does not seem to be accepted"
                         + " by MapieQuantileRegressor. \n"
                         "Give a base model among: \n"
-                        "``quantile_estimator_params.keys()``"
+                        f"{self.quantile_estimator_params.keys()}"
                         "Or, add your base model to"
                         + " ``quantile_estimator_params``."
                     )
-
-    def _check_cv(
-        self,
-        cv: Optional[str] = None
-    ) -> str:
-        """
-        Check if cv argument is None, "split" or "prefit".
-
-        Parameters
-        ----------
-        cv : Optional[str], optional
-           cv to check, by default ``None``.
-
-        Returns
-        -------
-        str
-            cv itself or a default "split".
-
-        Raises
-        ------
-        ValueError
-            Raises an error if the cv is anything else but the method "split"
-            or "prefit.
-            Only the split method has been implemented.
-        """
-        if cv is None:
-            return "split"
-        if cv in ("split", "prefit"):
-            return cv
-        else:
-            raise ValueError(
-                "Invalid cv method, only valid method is ``split``."
-            )
-
-    def _check_calib_set(
-        self,
-        X: ArrayLike,
-        y: ArrayLike,
-        sample_weight: Optional[ArrayLike] = None,
-        X_calib: Optional[ArrayLike] = None,
-        y_calib: Optional[ArrayLike] = None,
-        calib_size: Optional[float] = 0.3,
-        random_state: Optional[Union[int, np.random.RandomState, None]] = None,
-        shuffle: Optional[bool] = True,
-        stratify: Optional[ArrayLike] = None,
-    ) -> Tuple[
-        ArrayLike, ArrayLike, ArrayLike, ArrayLike, Optional[ArrayLike]
-    ]:
-        """
-        Check if a calibration set has already been defined, if not, then
-        we define one using the `train_test_split` method.
-
-        Parameters
-        ----------
-        Same definition of parameters as for the ``fit`` method.
-
-        Returns
-        -------
-        Tuple[ArrayLike, ArrayLike, ArrayLike, ArrayLike, ArrayLike]
-            - [0]: ArrayLike of shape (n_samples_*(1-calib_size), n_features)
-                X_train
-            - [1]: ArrayLike of shape (n_samples_*(1-calib_size),)
-                y_train
-            - [2]: ArrayLike of shape (n_samples_*calib_size, n_features)
-                X_calib
-            - [3]: ArrayLike of shape (n_samples_*calib_size,)
-                y_calib
-            - [4]: ArrayLike of shape (n_samples_,)
-                sample_weight_train
-
-        """
-        if X_calib is None or y_calib is None:
-            if sample_weight is None:
-                X_train, X_calib, y_train, y_calib = train_test_split(
-                        X,
-                        y,
-                        test_size=calib_size,
-                        random_state=random_state,
-                        shuffle=shuffle,
-                        stratify=stratify
-                )
-                sample_weight_train = sample_weight
-            else:
-                (
-                        X_train,
-                        X_calib,
-                        y_train,
-                        y_calib,
-                        sample_weight_train,
-                        _,
-                ) = train_test_split(
-                        X,
-                        y,
-                        sample_weight,
-                        test_size=calib_size,
-                        random_state=random_state,
-                        shuffle=shuffle,
-                        stratify=stratify
-                )
-        else:
-            X_train, y_train, sample_weight_train = X, y, sample_weight
-        X_train, X_calib = cast(ArrayLike, X_train), cast(ArrayLike, X_calib)
-        y_train, y_calib = cast(ArrayLike, y_train), cast(ArrayLike, y_calib)
-        sample_weight_train = cast(ArrayLike, sample_weight_train)
-        return X_train, y_train, X_calib, y_calib, sample_weight_train
 
     def _check_prefit_params(
         self,
@@ -417,25 +443,21 @@ class MapieQuantileRegressor(MapieRegressor):
         estimator : List[Union[RegressorMixin, Pipeline]]
             List of three prefitted estimators that should have
             pre-defined quantile levels of alpha/2, 1 - alpha/2 and 0.5.
-        X : ArrayLike of shape (n_samples, n_features)
-            Training data.
-        y : ArrayLike of shape (n_samples,)
-            Training labels.
-        X_calib : Optional[ArrayLike] of shape (n_calib_samples, n_features)
-            Calibration data.
-        y_calib : Optional[ArrayLike] of shape (n_calib_samples,)
-            Calibration labels.
 
         Raises
         ------
         ValueError
             If a non-iterable variable is provided for estimator.
+
         ValueError
             If less or more than three models are defined.
+
         Warning
             If X and y are defined, then warning that they are not used.
+
         ValueError
             If the calibration set is not defined.
+
         Warning
             If the alpha is defined, warns the user that it must be set
             accordingly with the prefit estimators.
@@ -455,17 +477,43 @@ class MapieQuantileRegressor(MapieRegressor):
                     " order [alpha/2, 1 - alpha/2, 0.5]."
                     )
 
+    def _pred_multi_alpha(self, X: ArrayLike) -> NDArray:
+        """
+        TODO
+        Return a prediction per train sample for each test sample, by
+        aggregation with matrix  ``k_``.
+
+        Parameters
+        ----------
+            X: NDArray of shape (n_samples_test, n_features)
+                Input data
+
+        Returns
+        -------
+            NDArray of shape (n_samples_test, n_samples_train)
+        """
+        y_pred_alpha_list = []
+        for i, est_list in enumerate(self.estimators_):
+            y_pred_multi = np.column_stack(
+                [e.predict(X) for e in est_list]
+            )
+            # At this point, y_pred_multi is of shape
+            # (n_samples_test, n_estimators_). The method
+            # ``_aggregate_with_mask`` fits it to the right size
+            # thanks to the shape of k_.
+            y_pred_alpha_list.append(
+                self._aggregate_with_mask(y_pred_multi, self.k_[i])
+            )
+
+        y_pred_alpha = np.array(y_pred_alpha_list)
+
+        return y_pred_alpha
+
     def fit(
         self,
         X: ArrayLike,
         y: ArrayLike,
         sample_weight: Optional[ArrayLike] = None,
-        X_calib: Optional[ArrayLike] = None,
-        y_calib: Optional[ArrayLike] = None,
-        calib_size: Optional[float] = 0.3,
-        random_state: Optional[Union[int, np.random.RandomState, None]] = None,
-        shuffle: Optional[bool] = True,
-        stratify: Optional[ArrayLike] = None,
     ) -> MapieQuantileRegressor:
         """
         Fit estimator and compute residuals used for prediction intervals.
@@ -479,8 +527,10 @@ class MapieQuantileRegressor(MapieRegressor):
         ----------
         X : ArrayLike of shape (n_samples, n_features)
             Training data.
+
         y : ArrayLike of shape (n_samples,)
             Training labels.
+
         sample_weight : Optional[ArrayLike] of shape (n_samples,)
             Sample weights for fitting the out-of-fold models.
             If None, then samples are equally weighted.
@@ -490,124 +540,135 @@ class MapieQuantileRegressor(MapieRegressor):
             If weights are non-uniform, residuals are still uniformly weighted.
             Note that the sample weight defined are only for the training, not
             for the calibration procedure.
+
             By default ``None``.
-        X_calib : Optional[ArrayLike] of shape (n_calib_samples, n_features)
-            Calibration data.
-        y_calib : Optional[ArrayLike] of shape (n_calib_samples,)
-            Calibration labels.
-        calib_size : Optional[float]
-            If X_calib and y_calib are not defined, then the calibration
-            dataset is created with the split defined by calib_size.
-        random_state : int, RandomState instance or None, default=None
-            For the ``sklearn.model_selection.train_test_split`` documentation.
-            Controls the shuffling applied to the data before applying the
-            split.
-            Pass an int for reproducible output across multiple function calls.
-            See :term:`Glossary <random_state>`.
-        shuffle : bool, default=True
-            For the ``sklearn.model_selection.train_test_split`` documentation.
-            Whether or not to shuffle the data before splitting.
-            If shuffle=False
-            then stratify must be None.
-        stratify : array-like, default=None
-            For the ``sklearn.model_selection.train_test_split`` documentation.
-            If not None, data is split in a stratified fashion, using this as
-            the class labels.
-            Read more in the :ref:`User Guide <stratification>`.
 
         Returns
         -------
         MapieQuantileRegressor
              The model itself.
         """
-        self.cv = self._check_cv(cast(str, self.cv))
+        # Checks
+        self._check_parameters()
+        cv = check_cv(
+            self.cv, test_size=self.test_size, random_state=self.random_state
+        )
+        alpha = self._check_alpha(self.alpha)
+        estimator = self._check_estimator(self.estimator)
+        agg_function = self._check_agg_function(self.agg_function)
+        X, y = indexable(X, y)
+        y = _check_y(y)
+        sample_weight = cast(Optional[NDArray], sample_weight)
+        self.n_features_in_ = check_n_features_in(X, cv, estimator)
+        sample_weight, X, y = check_null_weight(sample_weight, X, y)
+        self.conformity_score_function_ = check_conformity_score(
+            self.conformity_score
+        )
+        y = cast(NDArray, y)
+        n_samples = _num_samples(y)
+        check_alpha_and_n_samples(alpha, n_samples)
+        cv = cast(BaseCrossValidator, cv)
 
         # Initialization
-        self.estimators_: List[RegressorMixin] = []
-        if self.cv == "prefit":
-            estimator = cast(List, self.estimator)
-            alpha = self._check_alpha(self.alpha)
-            self._check_prefit_params(estimator)
-            X_calib, y_calib = indexable(X, y)
+        self.single_estimator_alpha_: List[RegressorMixin] = []
+        self.estimators_: List[List[RegressorMixin]] = []
 
-            self.n_calib_samples = _num_samples(y_calib)
-            y_calib_preds = np.full(
-                shape=(3, self.n_calib_samples),
-                fill_value=np.nan
-            )
-            for i, est in enumerate(estimator):
-                self.estimators_.append(est)
-                y_calib_preds[i] = est.predict(X_calib).ravel()
-            self.single_estimator_ = self.estimators_[2]
-        else:
-            # Checks
-            self._check_parameters()
-            checked_estimator = self._check_estimator(self.estimator)
-            alpha = self._check_alpha(self.alpha)
-            X, y = indexable(X, y)
-            random_state = check_random_state(random_state)
-            results = self._check_calib_set(
-                X,
-                y,
-                sample_weight,
-                X_calib,
-                y_calib,
-                calib_size,
-                random_state,
-                shuffle,
-                stratify,
-            )
-            X_train, y_train, X_calib, y_calib, sample_weight_train = results
-            X_train, y_train = indexable(X_train, y_train)
-            X_calib, y_calib = indexable(X_calib, y_calib)
-            y_train, y_calib = _check_y(y_train), _check_y(y_calib)
-            self.n_calib_samples = _num_samples(y_calib)
-            check_alpha_and_n_samples(self.alpha, self.n_calib_samples)
-            sample_weight_train, X_train, y_train = check_null_weight(
-                sample_weight_train,
-                X_train,
-                y_train
-            )
-            y_train = cast(NDArray, y_train)
-
-            y_calib_preds = np.full(
-                shape=(3, self.n_calib_samples),
-                fill_value=np.nan
-            )
-
-            if isinstance(checked_estimator, Pipeline):
-                estimator = checked_estimator[-1]
+        def clone_estimator(_estimator, _alpha):
+            cloned_estimator_ = clone(_estimator)
+            if isinstance(_estimator, Pipeline):
+                alpha_name = self.quantile_estimator_params[
+                    _estimator[-1].__class__.__name__
+                ]["alpha_name"]
+                _params = {alpha_name: _alpha}
+                cloned_estimator_[-1].set_params(**_params)
             else:
-                estimator = checked_estimator
-            name_estimator = estimator.__class__.__name__
-            alpha_name = self.quantile_estimator_params[
-                name_estimator
-            ]["alpha_name"]
-            for i, alpha_ in enumerate(alpha):
-                cloned_estimator_ = clone(checked_estimator)
-                params = {alpha_name: alpha_}
-                if isinstance(checked_estimator, Pipeline):
-                    cloned_estimator_[-1].set_params(**params)
-                else:
-                    cloned_estimator_.set_params(**params)
-                self.estimators_.append(fit_estimator(
-                    cloned_estimator_, X_train, y_train, sample_weight_train
-                ))
-                y_calib_preds[i] = self.estimators_[-1].predict(X_calib)
-            self.single_estimator_ = self.estimators_[2]
+                alpha_name = self.quantile_estimator_params[
+                    _estimator.__class__.__name__
+                ]["alpha_name"]
+                _params = {alpha_name: _alpha}
+                cloned_estimator_.set_params(**_params)
+            return cloned_estimator_
 
-        self.conformity_scores_ = np.full(
-                shape=(3, self.n_calib_samples),
-                fill_value=np.nan
-            )
-        self.conformity_scores_[0] = y_calib_preds[0] - y_calib
-        self.conformity_scores_[1] = y_calib - y_calib_preds[1]
-        self.conformity_scores_[2] = np.max(
-            [
-                self.conformity_scores_[0],
-                self.conformity_scores_[1]
-            ], axis=0
+        # Work
+        y_pred = np.full(
+            shape=(3, n_samples),
+            fill_value=np.nan,
+            dtype=float,
         )
+        self.conformity_scores_ = np.full(
+            shape=(3, n_samples),
+            fill_value=np.nan,
+            dtype=float,
+        )
+        if self.cv != "prefit":
+            pred_matrix = np.full(
+                shape=(3, n_samples, cv.get_n_splits(X, y)),
+                fill_value=np.nan,
+                dtype=float,
+            )
+            self.k_ = np.full(
+                shape=(3, n_samples, cv.get_n_splits(X, y)),
+                fill_value=np.nan,
+                dtype=float,
+            )
+        else:
+            self.k_ = np.full(
+                shape=(3, n_samples, 1), fill_value=np.nan, dtype=float
+            )
+
+        for i, alpha_ in enumerate(alpha):
+            if self.cv == "prefit":
+                self.single_estimator_alpha_.append(estimator[i])
+                y_pred[i] = self.single_estimator_alpha_[-1].predict(X)
+            else:
+                cloned_estimator_ = clone_estimator(estimator, alpha_)
+                self.single_estimator_alpha_.append(fit_estimator(
+                    cloned_estimator_, X, y, sample_weight
+                ))
+
+                if self.method == "naive":
+                    y_pred[i] = self.single_estimator_alpha_[-1].predict(X)
+                else:
+                    outputs = Parallel(n_jobs=self.n_jobs,
+                                       verbose=self.verbose)(
+                        delayed(self._fit_and_predict_oof_model)(
+                            clone_estimator(estimator, alpha_),
+                            X,
+                            y,
+                            train_index,
+                            val_index,
+                            sample_weight,
+                        )
+                        for train_index, val_index in cv.split(X)
+                    )
+                    new_estimators, predictions, val_indices = map(
+                        list, zip(*outputs)
+                    )
+
+                    self.estimators_.append(new_estimators)
+
+                    for j, val_ind in enumerate(val_indices):
+                        pred_matrix[i, val_ind, j] = np.array(
+                            predictions[j], dtype=float
+                        )
+                        self.k_[i, val_ind, j] = 1
+                    check_nan_in_aposteriori_prediction(pred_matrix[i])
+
+                    y_pred[i] = aggregate_all(agg_function, pred_matrix[i])
+
+            self.conformity_score_function_.sym = False
+            self.conformity_scores_[i] = (
+                self.conformity_score_function_.get_conformity_scores(
+                    y,
+                    y_pred[i]
+                )
+            )
+
+        if isinstance(cv, ShuffleSplit):
+            self.single_estimator_ = self.estimators_[2][0]
+        else:
+            self.single_estimator_ = self.single_estimator_alpha_[2]
+
         return self
 
     def predict(
@@ -615,30 +676,44 @@ class MapieQuantileRegressor(MapieRegressor):
         X: ArrayLike,
         ensemble: bool = False,
         alpha: Optional[Union[float, Iterable[float]]] = None,
-        symmetry: Optional[bool] = True,
     ) -> Union[NDArray, Tuple[NDArray, NDArray]]:
         """
         Predict target on new samples with confidence intervals.
-        Residuals from the training set and predictions from the model clones
-        are central to the computation.
-        Prediction Intervals for a given ``alpha`` are deduced from the
-        quantile regression at the alpha values: alpha/2, 1 - (alpha/2)
-        while adding a constant based uppon their residuals.
+        Conformity scores from the training set and predictions
+        from the model clones are central to the computation.
+        Prediction Intervals for a given ``alpha`` are deduced from either
+
+        - quantiles of conformity scores (naive and base methods),
+        - quantiles of (predictions +/- conformity scores) (plus method),
+        - quantiles of (max/min(predictions) +/- conformity scores)
+          (minmax method).
 
         Parameters
         ----------
-        X : ArrayLike of shape (n_samples, n_features)
+        X: ArrayLike of shape (n_samples, n_features)
             Test data.
-        ensemble : bool
-            Ensemble has not been defined in predict and therefore should
-            will not have any effects in this method.
-        alpha : Optional[Union[float, Iterable[float]]]
-            For ``MapieQuantileRegresor`` the alpha has to be defined
-            directly in initial arguments of the class.
-        symmetry : Optional[bool], optional
-            Deciding factor to whether to find the quantile value for
-            each residuals separatly or to use the maximum of the two
-            combined.
+
+        ensemble: bool
+            Boolean determining whether the predictions are ensembled or not.
+            If False, predictions are those of the model trained on the whole
+            training set.
+            If True, predictions from perturbed models are aggregated by
+            the aggregation function specified in the ``agg_function``
+            attribute.
+
+            If cv is ``"prefit"`` or ``"split"``, ``ensemble`` is ignored.
+
+            By default ``False``.
+
+        alpha: Optional[Union[float, Iterable[float]]]
+            Can be a float, a list of floats, or a ``ArrayLike`` of floats.
+            Between 0 and 1, represents the uncertainty of the confidence
+            interval.
+            Lower ``alpha`` produce larger (more conservative) prediction
+            intervals.
+            ``alpha`` is the complement of the target coverage level.
+
+            By default ``None``.
 
         Returns
         -------
@@ -652,40 +727,93 @@ class MapieQuantileRegressor(MapieRegressor):
             - [:, 0, :]: Lower bound of the prediction interval.
             - [:, 1, :]: Upper bound of the prediction interval.
         """
+        # Checks
         check_is_fitted(self, self.fit_attributes)
         check_defined_variables_predict_cqr(ensemble, alpha)
-        alpha = self.alpha if symmetry else self.alpha/2
-        check_alpha_and_n_samples(alpha, self.n_calib_samples)
+        self._check_ensemble(ensemble)
 
-        n = self.n_calib_samples
-        q = (1 - (alpha)) * (1 + (1 / n))
+        y_pred = self.single_estimator_.predict(X)
 
-        y_preds = np.full(
+        if alpha is None:
+            return np.array(y_pred)
+
+        n_samples = len(self.conformity_scores_[-1])
+        alpha_np = cast(NDArray, check_alpha(alpha))
+        check_alpha_and_n_samples(alpha_np, n_samples)
+
+        y_pred = np.full(
             shape=(3, _num_samples(X)),
             fill_value=np.nan,
             dtype=float,
         )
-        for i, est in enumerate(self.estimators_):
-            y_preds[i] = est.predict(X)
-        if symmetry:
-            quantile = np.full(
-                2,
-                np_quantile(
-                    self.conformity_scores_[2], q, method="higher"
-                )
-            )
+        for i, est in enumerate(self.single_estimator_alpha_):
+            y_pred[i] = est.predict(X)
+
+        if self.method in self.no_agg_methods_ \
+                or self.cv in self.no_agg_cv_:
+            y_pred_multi_low = y_pred[0, :, np.newaxis]
+            y_pred_multi_up = y_pred[1, :, np.newaxis]
         else:
-            quantile = np.array(
-                [
-                    np_quantile(
-                        self.conformity_scores_[0], q, method="higher"
-                    ),
-                    np_quantile(
-                        self.conformity_scores_[1], q, method="higher"
+            y_pred_multi = self._pred_multi_alpha(X)
+
+            if self.method == "minmax":
+                y_pred_multi_low = np.min(
+                    y_pred_multi[0], axis=1, keepdims=True
+                )
+                y_pred_multi_up = np.max(
+                    y_pred_multi[1], axis=1, keepdims=True
+                )
+            else:
+                y_pred_multi_low = y_pred_multi[0]
+                y_pred_multi_up = y_pred_multi[1]
+
+            if ensemble:
+                for i, est in enumerate(self.single_estimator_alpha_):
+                    y_pred[i] = aggregate_all(
+                        self.agg_function, y_pred_multi[i]
                     )
-                ]
+
+        # compute distributions of lower and upper bounds
+        conformity_scores_low = self.conformity_scores_[0]
+        conformity_scores_up = self.conformity_scores_[1]
+        alpha_np = alpha_np/2
+
+        lower_bounds = (
+            self.conformity_score_function_.get_estimation_distribution(
+                y_pred_multi_low, conformity_scores_low
             )
-        y_pred_low = y_preds[0][:, np.newaxis] - quantile[0]
-        y_pred_up = y_preds[1][:, np.newaxis] + quantile[1]
-        check_lower_upper_bounds(y_preds, y_pred_low, y_pred_up)
-        return y_preds[2], np.stack([y_pred_low, y_pred_up], axis=1)
+        )
+        upper_bounds = (
+            self.conformity_score_function_.get_estimation_distribution(
+                y_pred_multi_up, conformity_scores_up
+            )
+        )
+
+        # get desired confidence intervals according to alpha
+        y_pred_low = np.column_stack(
+            [
+                np_nanquantile(
+                    lower_bounds.astype(float),
+                    _alpha,
+                    axis=1,
+                    method="lower",
+                )
+                for _alpha in alpha_np
+            ]
+        )
+        y_pred_up = np.column_stack(
+            [
+                np_nanquantile(
+                    upper_bounds.astype(float),
+                    1-_alpha,
+                    axis=1,
+                    method="higher",
+                )
+                for _alpha in alpha_np
+            ]
+        )
+
+        for i in range(len(alpha_np)):
+            check_lower_upper_bounds(y_pred, y_pred_low[:, i], y_pred_up[:, i])
+
+        return y_pred[2], np.stack([y_pred_low, y_pred_up], axis=1)

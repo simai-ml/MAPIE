@@ -324,33 +324,6 @@ def test_compute_quantiles_2D_and_3D(alphas: NDArray):
     assert (quantiles1 == quantiles2).all()
 
 
-@pytest.mark.parametrize("estimator", [-1, 3, 0.2])
-def test_quantile_prefit_non_iterable(estimator: Any) -> None:
-    """
-    Test that there is a list of estimators provided when cv='prefit'
-    is called for MapieQuantileRegressor.
-    """
-    with pytest.raises(
-        ValueError,
-        match=r".*Estimator for prefit must be an iterable object.*",
-    ):
-        mapie_reg = MapieQuantileRegressor(estimator=estimator, cv="prefit")
-        mapie_reg.fit([1, 2, 3], [4, 5, 6])
-
-
-# def test_calib_set_no_Xy_but_sample_weight() -> None:
-#     """Test warning message if sample weight provided but no X y in calib."""
-#     X = np.array([4, 5, 6])
-#     y = np.array([4, 3, 2])
-#     sample_weight = np.array([4, 4, 4])
-#     sample_weight_calib = np.array([4, 3, 4])
-#     with pytest.warns(UserWarning, match=r"WARNING: sample weight*"):
-#         check_calib_set(
-#             X=X, y=y, sample_weight=sample_weight,
-#             sample_weight_calib=sample_weight_calib
-#         )
-
-
 @pytest.mark.parametrize("strategy", ["quantile", "uniform", "array split"])
 def test_binning_group_strategies(strategy: str) -> None:
     """Test that different strategies have the correct outputs."""
