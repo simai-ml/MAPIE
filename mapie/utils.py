@@ -1073,3 +1073,62 @@ def fix_number_of_classes(
         axis=1
     )
     return y_pred_full
+
+
+def argsort_ties(
+    a: ArrayLike,
+    seed: Optional[int] = None,
+    axis: Optional[int] = None
+) -> ArrayLike:
+    """
+    Returns the indices that would sort the array.
+    In case of ties, breaks them randomly.
+    """
+
+    rng = np.random.default_rng(seed)
+    pseudo_array = rng.random(a.shape)
+    return np.lexsort((pseudo_array, a), axis=axis)
+
+
+def weighted_quantile(
+    a: ArrayLike,
+    q: Iterable[float],
+    axis: int = 1,
+    weights: Optional[ArrayLike] = None,
+    sorted: bool = False,
+) -> ArrayLike:
+    """
+    Calculates the weighted empirical quantile of `values`.
+    Converted to Python from https://github.com/ryantibs/conformal/
+    """
+
+    if a.shape != weights.shape:
+        raise ValueError(
+            "Expected `values` and `weights` to have the same shape.")
+
+    if weights is None:
+        weights = np.ones_like(a, dtype=np.float64)
+    if not sorted:
+        sorted_ind = np.argsort(a, axis=axis)  # argsort_ties(a, axis=-1)
+        a = np.take_along_axis(a, sorted_ind, axis=axis)
+        weights = np.take_along_axis(weights, sorted_ind, axis=axis)
+
+    idx = np.argmin(
+        np.ma.masked_less(
+            np.cumsum(weights, axis=axis)
+            / np.sum(weights, axis=axis)[:, np.newaxis],
+            q
+        ),
+        axis=axis
+    )
+    quantiles = np.take_along_axis(a, idx.reshape(-1, 1), axis=axis)
+    # idx = np.where(
+    #     (np.cumsum(weights, axis=axis) /
+    # np.sum(weights, axis=axis)[:, np.newaxis]) >= q, weights
+    # ) # [0]
+    # np.take_along_axis(a, idx, axis=0)
+    # if idx.shape[0] == 0:
+    #     quantiles = a[-1]
+    # else:
+    #     quantiles = a[idx.min()]
+    return quantiles
