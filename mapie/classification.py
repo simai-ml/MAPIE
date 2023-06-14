@@ -169,7 +169,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
      [False False  True]]
     """
 
-    valid_methods_ = ["naive", "score", "cumulated_score", "top_k", "raps"]
+    valid_methods_ = ["naive", "score", "cumulated_score", "top_k", "raps", "crf_score", "crf_aps"]
     fit_attributes = [
         "single_estimator_",
         "estimators_",
@@ -894,6 +894,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         y: ArrayLike,
         sample_weight: Optional[ArrayLike] = None,
         size_raps: Optional[float] = .2,
+        residuals: Optional[Union[None, ArrayLike]] = None
     ) -> MapieClassifier:
         """
         Fit the base estimator or use the fitted base estimator.
@@ -1031,11 +1032,13 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     y_pred_proba.shape,
                     dtype="float"
                 )
-            elif self.method == "score":
+            elif self.method in ["score", "crf_score"]:
                 self.conformity_scores_ = np.take_along_axis(
                     1 - y_pred_proba, y_enc.reshape(-1, 1), axis=1
                 )
-            elif self.method in ["cumulated_score", "raps"]:
+                if self.method == "crf_score":
+                    self.conformity_scores_ /= residuals
+            elif self.method in ["cumulated_score", "raps", "crf_aps"]:
                 self.conformity_scores_, self.cutoff = (
                     self._get_true_label_cumsum_proba(
                         y,
@@ -1048,6 +1051,8 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 random_state = check_random_state(self.random_state)
                 u = random_state.uniform(size=len(y_pred_proba)).reshape(-1, 1)
                 self.conformity_scores_ -= u * y_proba_true
+                if self.method == "crf_aps":
+                    self.conformity_scores_ /= residuals
             elif self.method == "top_k":
                 # Here we reorder the labels by decreasing probability
                 # and get the position of each label from decreasing
@@ -1085,7 +1090,8 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         X: ArrayLike,
         alpha: Optional[Union[float, Iterable[float]]] = None,
         include_last_label: Optional[Union[bool, str]] = True,
-        agg_scores: Optional[str] = "mean"
+        agg_scores: Optional[str] = "mean",
+        residuals: Optional[Union[None, ArrayLike]] = None
     ) -> Union[NDArray, Tuple[NDArray, NDArray]]:
         """
         Prediction prediction sets on new samples based on target confidence
@@ -1241,6 +1247,8 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     )
             else:
                 self.quantiles_ = (n + 1) * (1 - alpha_np)
+                if "crf" in self.method:
+                    self.quantiles *= residuals
 
         # Build prediction sets
         if self.method == "score":
