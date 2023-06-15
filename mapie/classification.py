@@ -347,13 +347,22 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
             (include_last_label) or
             (include_last_label == 'randomized')
         ):
-            y_pred_index_last = (
-                    np.ma.masked_less(
-                        y_pred_proba_cumsum
-                        - threshold[np.newaxis, :],
-                        -EPSILON
-                    ).argmin(axis=1)
-            )
+            if self.method == "crf_aps":
+                y_pred_index_last = (
+                        np.ma.masked_less(
+                            y_pred_proba_cumsum
+                            - threshold,
+                            -EPSILON
+                        ).argmin(axis=1)
+                )
+            else:
+                y_pred_index_last = (
+                        np.ma.masked_less(
+                            y_pred_proba_cumsum
+                            - threshold[np.newaxis, :],
+                            -EPSILON
+                        ).argmin(axis=1)
+                )
         elif (include_last_label is False):
             max_threshold = np.maximum(
                 threshold[np.newaxis, :],
@@ -1037,7 +1046,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     1 - y_pred_proba, y_enc.reshape(-1, 1), axis=1
                 )
                 if self.method == "crf_score":
-                    self.conformity_scores_ /= residuals
+                    self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
             elif self.method in ["cumulated_score", "raps", "crf_aps"]:
                 self.conformity_scores_, self.cutoff = (
                     self._get_true_label_cumsum_proba(
@@ -1052,7 +1061,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 u = random_state.uniform(size=len(y_pred_proba)).reshape(-1, 1)
                 self.conformity_scores_ -= u * y_proba_true
                 if self.method == "crf_aps":
-                    self.conformity_scores_ /= residuals
+                    self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
             elif self.method == "top_k":
                 # Here we reorder the labels by decreasing probability
                 # and get the position of each label from decreasing
@@ -1241,17 +1250,41 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                         alpha_np
                     )
                 else:
-                    self.quantiles_ = compute_quantiles(
-                        self.conformity_scores_,
-                        alpha_np
-                    )
+                    if "crf" in self.method:
+                        # import pdb; pdb.set_trace()
+                        quantiles_temp = compute_quantiles(
+                            self.conformity_scores_,
+                            alpha_np
+                        )
+                        self.quantiles_ = np.repeat(
+                            np.expand_dims(residuals, axis=1),
+                            len(quantiles_temp), axis=1
+                        ).astype('float64')
+                        quantiles_temp = np.expand_dims(
+                            quantiles_temp,
+                            axis=0
+                        )
+                        quantiles_temp = np.repeat(
+                            quantiles_temp,
+                            len(self.quantiles_),
+                            axis=0
+                        )
+                        self.quantiles_ *= quantiles_temp
+                        self.quantiles_ = np.expand_dims(
+                            self.quantiles_,
+                            axis=1
+                        )
+                    else:
+                        self.quantiles_ = compute_quantiles(
+                            self.conformity_scores_,
+                            alpha_np
+                        )
+
             else:
                 self.quantiles_ = (n + 1) * (1 - alpha_np)
-                if "crf" in self.method:
-                    self.quantiles *= residuals
 
         # Build prediction sets
-        if self.method == "score":
+        if self.method in ["score", "crf_score"]:
             if (cv == "prefit") or (agg_scores == "mean"):
                 prediction_sets = np.greater_equal(
                     y_pred_proba - (1 - self.quantiles_), -EPSILON
@@ -1270,7 +1303,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     ], axis=2
                 )
 
-        elif self.method in ["cumulated_score", "naive", "raps"]:
+        elif self.method in ["cumulated_score", "naive", "raps", "crf_aps"]:
             # specify which thresholds will be used
             if (cv == "prefit") or (agg_scores in ["mean"]):
                 thresholds = self.quantiles_

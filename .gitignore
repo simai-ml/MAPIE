@@ -83,3 +83,4 @@ target/
 
 # ZIP files
 *.zip
+notebooks/test crf classif.ipynb
