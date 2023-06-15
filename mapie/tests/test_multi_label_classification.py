@@ -118,10 +118,10 @@ class WrongOutputModel:
         pass
 
     def predict_proba(self, *args: Any) -> NDArray:
-        pass
+        """Dummy predict_proba."""
 
     def predict(self, *args: Any) -> NDArray:
-        pass
+        """Dummy predict."""
 
 
 class ArrayOutputModel:
@@ -131,7 +131,6 @@ class ArrayOutputModel:
 
     def fit(self, *args: Any) -> None:
         """Dummy fit."""
-        self.trained_ = True
 
     def predict_proba(self, X: NDArray, *args: Any) -> NDArray:
         probas = np.array([[.9, .05, .05]])
@@ -433,11 +432,7 @@ def test_method_error_if_no_label_partial_fit() -> None:
     )
     mapie_clf = MapieMultiLabelClassifier(clf)
     with pytest.raises(ValueError, match=r".*Invalid y.*"):
-        for i in range(len(X_no_label)):
-            mapie_clf.partial_fit(
-                np.expand_dims(X_no_label[i], axis=0),
-                np.expand_dims(y_no_label[i], axis=0)
-            )
+        mapie_clf.partial_fit(X_no_label, y_no_label)
 
 
 @pytest.mark.parametrize("bound", WRONG_BOUNDS)

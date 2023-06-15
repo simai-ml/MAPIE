@@ -43,8 +43,7 @@ from sklearn.model_selection import KFold, RandomizedSearchCV, train_test_split
 
 from mapie.metrics import (regression_coverage_score,
                            regression_mean_width_score)
-from mapie.quantile_regression import MapieQuantileRegressor
-from mapie.regression import MapieRegressor
+from mapie.regression import MapieQuantileRegressor, MapieRegressor
 from mapie.subsample import Subsample
 
 random_state = 23

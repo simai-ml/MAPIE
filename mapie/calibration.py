@@ -13,7 +13,7 @@ from sklearn.utils.validation import (_check_y, _num_samples, check_is_fitted,
                                       indexable)
 
 from ._typing import ArrayLike, NDArray
-from .utils import (check_cv, check_estimator_classification,
+from .utils import (check_estimator_classification,
                     check_estimator_fit_predict, check_n_features_in,
                     check_null_weight, fit_estimator, get_calib_set)
 
@@ -120,6 +120,8 @@ class MapieCalibrator(BaseEstimator, ClassifierMixin):
 
     valid_methods = ["top_label"]
 
+    valid_cv = ["prefit", "split"]
+
     valid_inputs = ["multiclass", "binary"]
 
     def __init__(
@@ -133,6 +135,36 @@ class MapieCalibrator(BaseEstimator, ClassifierMixin):
         self.method = method
         self.calibrator = calibrator
         self.cv = cv
+
+    def _check_cv(
+        self,
+        cv: Optional[str],
+    ) -> str:
+        """
+        Check if cross-validator is ``"prefit"`` or ``"split"``.
+        Else raise error.
+
+        Parameters
+        ----------
+        cv : str
+            Cross-validator to check.
+
+        Returns
+        -------
+        str
+            'prefit' or 'split'.
+
+        Raises
+        ------
+        ValueError
+            If the cross-validator is not valid.
+        """
+        if cv in self.valid_cv:
+            return cv
+        raise ValueError(
+            "Invalid cv argument. "
+            f"Allowed values are {self.valid_cv}."
+        )
 
     def _check_calibrator(
         self,
@@ -441,7 +473,7 @@ class MapieCalibrator(BaseEstimator, ClassifierMixin):
             The model itself.
         """
         self._check_method()
-        cv = check_cv(self.cv)
+        cv = self._check_cv(self.cv)
         X, y = indexable(X, y)
         y = _check_y(y)
         self._check_type_of_target(y)

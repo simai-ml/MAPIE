@@ -37,7 +37,7 @@ from mapie._typing import NDArray
 from mapie.metrics import (regression_coverage_score,
                            regression_mean_width_score)
 from mapie.subsample import BlockBootstrap
-from mapie.time_series_regression import MapieTimeSeriesRegressor
+from mapie.regression import MapieTimeSeriesRegressor
 
 # Load input data and feature engineering
 url_file = (

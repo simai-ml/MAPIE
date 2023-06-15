@@ -30,33 +30,65 @@ ESTIMATORS = [
 ]
 
 results = {
-    "y_score": [
-        [np.nan, 0.33333333, np.nan],
-        [0.66666667, np.nan, np.nan],
-        [np.nan, 0.33333333, np.nan],
-        [np.nan, 0.33333333, np.nan],
-        [np.nan, 0.33333333, np.nan],
-        [np.nan, np.nan, 0.35635314],
-        [np.nan, np.nan, 0.18501723],
-    ],
-    "top_label_ece": 0.3881,
+    "split": {
+        "y_score": [
+            [np.nan, 0.33333333, np.nan],
+            [0.66666667, np.nan, np.nan],
+            [np.nan, 0.33333333, np.nan],
+            [np.nan, 0.33333333, np.nan],
+            [np.nan, 0.33333333, np.nan],
+            [np.nan, np.nan, 0.35635314],
+            [np.nan, np.nan, 0.18501723],
+        ],
+        "top_label_ece": 0.3881,
+    },
+    "prefit": {
+        "y_score": [
+            [np.nan, np.nan, 0.85714286],
+            [0.83333333, np.nan, np.nan],
+            [np.nan, 0.83333333, np.nan],
+            [np.nan, np.nan, 0.85714286],
+            [np.nan, np.nan, 0.85714286],
+            [np.nan, np.nan, 0.85714286],
+            [0.83333333, np.nan, np.nan]
+        ],
+        "top_label_ece": 0.31349206349206343
+    }
 }
 
 results_binary = {
-    "y_score": [
-        [0.76226014, np.nan],
-        [0.39557708, np.nan],
-        [np.nan, 0.66666667],
-        [0.75506701, np.nan],
-        [np.nan, 0.66666667],
-        [0.81175724, np.nan],
-        [0.77294068, np.nan],
-        [0.62599563, np.nan],
-        [np.nan, 0.66666667],
-        [np.nan, 0.66666667],
-    ],
-    "top_label_ece": 0.30562,
-    "ece": 0.56657,
+    "split": {
+        "y_score": [
+            [0.76226014, np.nan],
+            [0.39557708, np.nan],
+            [np.nan, 0.66666667],
+            [0.75506701, np.nan],
+            [np.nan, 0.66666667],
+            [0.81175724, np.nan],
+            [0.77294068, np.nan],
+            [0.62599563, np.nan],
+            [np.nan, 0.66666667],
+            [np.nan, 0.66666667],
+        ],
+        "top_label_ece": 0.30562,
+        "ece": 0.56657,
+    },
+    "prefit": {
+        "y_score": [
+            [0.85714286, np.nan],
+            [np.nan, 0.85714286],
+            [np.nan, 0.85714286],
+            [0.85714286, np.nan],
+            [np.nan, 0.85714286],
+            [0.85714286, np.nan],
+            [0.85714286, np.nan],
+            [0.85714286, np.nan],
+            [np.nan, 0.85714286],
+            [np.nan, 0.85714286]
+        ],
+        "top_label_ece": 0.1428571428571429,
+        "ece": 0.3571428571428571
+    },
 }
 
 
@@ -157,11 +189,28 @@ def test_other_methods() -> None:
         mapie_cal.fit(X, y)
 
 
-def test_prefit() -> None:
+def test_prefit_cv_argument() -> None:
     """Test that prefit method works"""
     est = RandomForestClassifier().fit(X, y)
     mapie_cal = MapieCalibrator(estimator=est, cv="prefit")
     mapie_cal.fit(X, y)
+
+
+def test_split_cv_argument() -> None:
+    """Test that split method works"""
+    mapie_cal = MapieCalibrator(cv="split")
+    mapie_cal.fit(X, y)
+
+
+@pytest.mark.parametrize("cv", ["noprefit", "nosplit"])
+def test_invalid_cv_argument(cv: str) -> None:
+    """Test that other cv method does not work"""
+    with pytest.raises(
+        ValueError,
+        match=r".*Invalid cv argument*",
+    ):
+        mapie_cal = MapieCalibrator(cv=cv)
+        mapie_cal.fit(X, y)
 
 
 def test_prefit_split_same_results() -> None:
@@ -250,12 +299,13 @@ def test_same_predict() -> None:
     )
 
 
-def test_correct_results() -> None:
+@pytest.mark.parametrize("cv", MapieCalibrator.valid_cv)
+def test_correct_results(cv: str) -> None:
     """
     Test that the y_score and top label score from the test dataset result
     in the correct scores (in a multi-class setting).
     """
-    mapie_cal = MapieCalibrator(cv="split")
+    mapie_cal = MapieCalibrator(cv=cv)
     mapie_cal.fit(
         X=X_,
         y=y_,
@@ -264,16 +314,17 @@ def test_correct_results() -> None:
     pred_ = mapie_cal.predict_proba(X_test)
     top_label_ece_ = top_label_ece(y_test, pred_)
     np.testing.assert_array_almost_equal(
-        results["y_score"], pred_  # type:ignore
+        results[cv]["y_score"], pred_  # type:ignore
     )
     np.testing.assert_allclose(  # type:ignore
-        results["top_label_ece"],
+        results[cv]["top_label_ece"],
         top_label_ece_,
         rtol=1e-2
     )
 
 
-def test_correct_results_binary() -> None:
+@pytest.mark.parametrize("cv", MapieCalibrator.valid_cv)
+def test_correct_results_binary(cv: str) -> None:
     """
     Test that the y_score and top label score from the test dataset result
     in the correct scores (in a binary setting).
@@ -284,7 +335,7 @@ def test_correct_results_binary() -> None:
         n_informative=4,
         random_state=random_state
     )
-    mapie_cal = MapieCalibrator()
+    mapie_cal = MapieCalibrator(cv=cv)
     mapie_cal.fit(
         X=X_binary,
         y=y_binary,
@@ -294,15 +345,15 @@ def test_correct_results_binary() -> None:
     top_label_ece_ = top_label_ece(y_binary, pred_)
     ece = expected_calibration_error(y_binary, pred_)
     np.testing.assert_array_almost_equal(
-        results_binary["y_score"], pred_  # type:ignore
+        results_binary[cv]["y_score"], pred_  # type:ignore
     )
     np.testing.assert_allclose(  # type:ignore
-        results_binary["top_label_ece"],
+        results_binary[cv]["top_label_ece"],
         top_label_ece_,
         rtol=1e-2
     )
     np.testing.assert_allclose(  # type:ignore
-        results_binary["ece"],
+        results_binary[cv]["ece"],
         ece,
         rtol=1e-2
     )

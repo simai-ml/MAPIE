@@ -16,8 +16,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
 
 from mapie._typing import NDArray
-from mapie.quantile_regression import MapieQuantileRegressor
-from mapie.regression import MapieRegressor
+from mapie.regression import MapieQuantileRegressor, MapieRegressor
 from mapie.subsample import Subsample
 
 F = TypeVar("F", bound=Callable[..., Any])

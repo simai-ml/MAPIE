@@ -12,8 +12,7 @@ from sklearn.utils.estimator_checks import parametrize_with_checks
 from sklearn.utils.validation import check_is_fitted
 
 from mapie.classification import MapieClassifier
-from mapie.quantile_regression import MapieQuantileRegressor
-from mapie.regression import MapieRegressor
+from mapie.regression import MapieQuantileRegressor, MapieRegressor
 
 X_toy = np.arange(18).reshape(-1, 1)
 y_toy = np.array(

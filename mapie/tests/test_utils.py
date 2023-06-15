@@ -10,7 +10,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.utils.validation import check_is_fitted
 
 from mapie._typing import ArrayLike, NDArray
-from mapie.quantile_regression import MapieQuantileRegressor
+from mapie.regression import MapieQuantileRegressor
 from mapie.utils import (check_alpha, check_alpha_and_n_samples,
                          check_binary_zero_one, check_lower_upper_bounds,
                          check_n_features_in, check_n_jobs, check_null_weight,

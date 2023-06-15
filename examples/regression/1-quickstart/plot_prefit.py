@@ -28,8 +28,7 @@ from sklearn.neural_network import MLPRegressor
 
 from mapie._typing import NDArray
 from mapie.metrics import regression_coverage_score
-from mapie.quantile_regression import MapieQuantileRegressor
-from mapie.regression import MapieRegressor
+from mapie.regression import MapieQuantileRegressor, MapieRegressor
 
 warnings.filterwarnings("ignore")
 

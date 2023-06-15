@@ -20,7 +20,7 @@ from typing_extensions import TypedDict
 
 from mapie._typing import NDArray
 from mapie.metrics import regression_coverage_score
-from mapie.quantile_regression import MapieQuantileRegressor
+from mapie.regression import MapieQuantileRegressor
 
 X_toy = np.array(
     [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4,
@@ -363,7 +363,7 @@ def test_wrong_alphas(alphas: float) -> None:
     """Checking for alphas values that are too big according to all value."""
     with pytest.raises(
         ValueError,
-        match=r".*Invalid alpha. Allowed values are between 0 and .*",
+        match=r".*Invalid alpha. Allowed values are between .*",
     ):
         mapie_reg = MapieQuantileRegressor(alpha=alphas)
         mapie_reg.fit(X_train, y_train, X_calib=X_calib, y_calib=y_calib)
@@ -732,3 +732,33 @@ def test_pipeline_compatibility(estimator: RegressorMixin) -> None:
         y_calib=y_calib_toy
     )
     mapie.predict(X)
+
+
+def test_deprecated_path_warning() -> None:
+    """
+    Test that a warning is raised if import with deprecated path.
+    """
+    with pytest.warns(
+        FutureWarning,
+        match=r".*WARNING: Deprecated path*"
+    ):
+        from mapie.quantile_regression import MapieQuantileRegressor
+        _ = MapieQuantileRegressor()
+
+
+def test_consistent_class() -> None:
+    """
+    Test that importing a class with a new or obsolete path
+    produces the same results.
+    """
+    from mapie.quantile_regression import MapieQuantileRegressor as C1
+    from mapie.regression import MapieQuantileRegressor as C2
+
+    mapie_c1 = C1(alpha=0.1).fit(X, y, random_state=random_state)
+    mapie_c2 = C2(alpha=0.1).fit(X, y, random_state=random_state)
+
+    y_pred_1, y_pis_1 = mapie_c1.predict(X, alpha=0.1)
+    y_pred_2, y_pis_2 = mapie_c2.predict(X, alpha=0.1)
+    np.testing.assert_allclose(y_pis_1[:, 0, 0], y_pis_2[:, 0, 0])
+    np.testing.assert_allclose(y_pis_1[:, 1, 0], y_pis_2[:, 1, 0])
+    np.testing.assert_allclose(y_pred_1, y_pred_2)

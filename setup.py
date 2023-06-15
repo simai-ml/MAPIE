@@ -19,12 +19,11 @@ PROJECT_URLS = {
     "Source Code": "https://github.com/scikit-learn-contrib/MAPIE"
 }
 LICENSE = "new BSD"
-MAINTAINER = "V. Taquet, V. Blot, T. Morzadec, G. Martinon"
+MAINTAINER = "T. Cordier, V. Blot, L. Lacombe"
 MAINTAINER_EMAIL = (
-    "vtaquet@quantmetry.com, "
+    "tcordier@quantmetry.com, "
     "vblot@quantmetry.com, "
-    "tmorzadec@quantmetry.com, "
-    "gmartinon@quantmetry.com"
+    "llacombe@quantmetry.com"
 )
 PYTHON_REQUIRES = ">=3.7"
 PACKAGES = find_packages()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Iterable, List, Optional, Union, cast
+from copy import deepcopy
 
 import numpy as np
 import pandas as pd
@@ -11,7 +12,7 @@ from sklearn.datasets import make_classification
 from sklearn.dummy import DummyClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold, LeaveOneOut
+from sklearn.model_selection import KFold, LeaveOneOut, ShuffleSplit
 from sklearn.pipeline import Pipeline, make_pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.utils.estimator_checks import check_estimator
@@ -76,6 +77,7 @@ Params = TypedDict(
     {
         "method": str,
         "cv": Optional[Union[int, str]],
+        "test_size": Optional[Union[int, float]],
         "random_state": Optional[int]
     }
 )
@@ -92,6 +94,19 @@ STRATEGIES = {
         Params(
             method="score",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=False,
+            agg_scores="mean"
+        )
+    ),
+    "score_split": (
+        Params(
+            method="score",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -103,6 +118,7 @@ STRATEGIES = {
         Params(
             method="score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -114,6 +130,7 @@ STRATEGIES = {
         Params(
             method="score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -125,6 +142,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv="prefit",
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -136,6 +154,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv="prefit",
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -147,6 +166,43 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label="randomized",
+            agg_scores="mean"
+        )
+    ),
+    "cumulated_score_include_split": (
+        Params(
+            method="cumulated_score",
+            cv="split",
+            test_size=0.5,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=True,
+            agg_scores="mean"
+        )
+    ),
+    "cumulated_score_not_include_split": (
+        Params(
+            method="cumulated_score",
+            cv="split",
+            test_size=0.5,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=False,
+            agg_scores="mean"
+        )
+    ),
+    "cumulated_score_randomized_split": (
+        Params(
+            method="cumulated_score",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -158,6 +214,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -169,6 +226,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -180,6 +238,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -191,6 +250,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -202,6 +262,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -213,6 +274,7 @@ STRATEGIES = {
         Params(
             method="cumulated_score",
             cv=3,
+            test_size=None,
             random_state=42
         ),
         ParamsPredict(
@@ -224,6 +286,19 @@ STRATEGIES = {
         Params(
             method="naive",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=True,
+            agg_scores="mean"
+        )
+    ),
+    "naive_split": (
+        Params(
+            method="naive",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -235,6 +310,19 @@ STRATEGIES = {
         Params(
             method="top_k",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=True,
+            agg_scores="mean"
+        )
+    ),
+    "top_k_split": (
+        Params(
+            method="top_k",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -246,6 +334,19 @@ STRATEGIES = {
         Params(
             method="raps",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label=True,
+            agg_scores="mean"
+        )
+    ),
+    "raps_split": (
+        Params(
+            method="raps",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -257,6 +358,19 @@ STRATEGIES = {
         Params(
             method="raps",
             cv="prefit",
+            test_size=None,
+            random_state=42
+        ),
+        ParamsPredict(
+            include_last_label="randomized",
+            agg_scores="mean"
+        )
+    ),
+    "raps_randomized_split": (
+        Params(
+            method="raps",
+            cv="split",
+            test_size=0.5,
             random_state=42
         ),
         ParamsPredict(
@@ -267,22 +381,30 @@ STRATEGIES = {
 }
 
 COVERAGES = {
-    "score": 6 / 9,
-    "score_cv_mean": 1,
-    "score_cv_crossval": 1,
-    "cumulated_score_include": 1,
-    "cumulated_score_not_include": 5 / 9,
-    "cumulated_score_randomized": 6 / 9,
-    "cumulated_score_include_cv_mean": 1,
-    "cumulated_score_not_include_cv_mean": 5 / 9,
-    "cumulated_score_randomized_cv_mean": 5 / 9,
-    "cumulated_score_include_cv_crossval": 2 / 9,
-    "cumulated_score_not_include_cv_crossval": 0,
-    "cumulated_score_randomized_cv_crossval": 4 / 9,
-    "naive": 5 / 9,
-    "top_k": 1,
-    "raps": 1,
-    "raps_randomized": 8/9
+    "score": 6/9,
+    "score_split": 8/9,
+    "score_cv_mean": 1.0,
+    "score_cv_crossval": 1.0,
+    "cumulated_score_include": 1.0,
+    "cumulated_score_not_include": 5/9,
+    "cumulated_score_randomized": 6/9,
+    "cumulated_score_include_split": 8/9,
+    "cumulated_score_not_include_split": 5/9,
+    "cumulated_score_randomized_split": 7/9,
+    "cumulated_score_include_cv_mean": 1.0,
+    "cumulated_score_not_include_cv_mean": 5/9,
+    "cumulated_score_randomized_cv_mean": 8/9,
+    "cumulated_score_include_cv_crossval": 4/9,
+    "cumulated_score_not_include_cv_crossval": 1/9,
+    "cumulated_score_randomized_cv_crossval": 7/9,
+    "naive": 5/9,
+    "naive_split": 5/9,
+    "top_k": 1.0,
+    "top_k_split": 1.0,
+    "raps": 1.0,
+    "raps_split": 7/9,
+    "raps_randomized": 8/9,
+    "raps_randomized_split": 1.0
 }
 
 X_toy = np.arange(9).reshape(-1, 1)
@@ -299,6 +421,17 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, True, True],
+        [False, False, True]
+    ],
+    "score_split": [
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [False, True, True],
+        [False, False, True],
+        [False, False, True],
         [False, False, True],
     ],
     "score_cv_mean": [
@@ -307,10 +440,10 @@ y_toy_mapie = {
         [True, True, False],
         [True, True, False],
         [False, True, False],
-        [False, True, False],
         [False, True, True],
         [False, True, True],
         [False, True, True],
+        [False, True, True]
     ],
     "score_cv_crossval": [
         [True, False, False],
@@ -321,7 +454,7 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, True],
         [False, True, True],
-        [False, True, True],
+        [False, True, True]
     ],
     "cumulated_score_include": [
         [True, False, False],
@@ -332,7 +465,7 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, True],
         [False, True, True],
-        [False, False, True],
+        [False, False, True]
     ],
     "cumulated_score_not_include": [
         [True, False, False],
@@ -343,7 +476,7 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, False, True],
-        [False, False, True],
+        [False, False, True]
     ],
     "cumulated_score_randomized": [
         [True, False, False],
@@ -354,18 +487,51 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, True, True],
+        [False, False, True]
+    ],
+    "cumulated_score_include_split": [
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, True],
+        [True, True, True],
+        [False, True, True],
         [False, False, True],
+        [False, False, True]
+    ],
+    "cumulated_score_not_include_split": [
+        [False, True, False],
+        [False, True, False],
+        [False, True, False],
+        [False, True, False],
+        [True, True, False],
+        [False, True, True],
+        [False, False, True],
+        [False, False, True],
+        [False, False, True]
+    ],
+    "cumulated_score_randomized_split": [
+        [False, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [False, True, True],
+        [False, False, True],
+        [False, False, True],
+        [False, False, True]
     ],
     "cumulated_score_include_cv_mean": [
         [True, False, False],
-        [True, False, False],
         [True, True, False],
         [True, True, False],
         [True, True, False],
-        [False, True, False],
+        [True, True, False],
         [False, True, True],
         [False, True, True],
         [False, True, True],
+        [False, True, True]
     ],
     "cumulated_score_not_include_cv_mean": [
         [True, False, False],
@@ -375,52 +541,52 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, True, False],
-        [False, True, False],
-        [False, True, False],
+        [False, False, True],
+        [False, False, True]
     ],
     "cumulated_score_randomized_cv_mean": [
         [True, False, False],
-        [True, False, False],
-        [True, False, False],
-        [False, True, False],
-        [False, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
         [False, True, False],
         [False, True, False],
         [False, True, True],
-        [False, True, False],
+        [False, True, True]
     ],
     "cumulated_score_include_cv_crossval": [
-        [False, False, False],
         [False, False, False],
         [True, False, False],
         [False, False, False],
         [False, True, False],
+        [True, True, False],
         [False, True, False],
         [False, True, False],
-        [False, False, False],
-        [False, False, False],
+        [False, True, False],
+        [False, False, False]
     ],
     "cumulated_score_not_include_cv_crossval": [
         [False, False, False],
         [False, False, False],
         [False, False, False],
         [False, False, False],
+        [False, True, False],
         [False, False, False],
         [False, False, False],
         [False, False, False],
-        [False, False, False],
-        [False, False, False],
+        [False, False, False]
     ],
     "cumulated_score_randomized_cv_crossval": [
         [True, False, False],
-        [False, False, False],
+        [True, False, False],
         [True, False, False],
         [False, True, False],
-        [False, True, False],
-        [False, True, False],
+        [True, True, True],
         [False, True, True],
-        [False, False, True],
+        [False, True, True],
         [False, True, False],
+        [False, False, True]
     ],
     "naive": [
         [True, False, False],
@@ -431,7 +597,18 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, False, True],
+        [False, False, True]
+    ],
+    "naive_split": [
+        [False, True, False],
+        [False, True, False],
+        [False, True, False],
+        [False, True, False],
+        [False, True, False],
+        [False, True, True],
         [False, False, True],
+        [False, False, True],
+        [False, False, True]
     ],
     "top_k": [
         [True, True, False],
@@ -442,7 +619,18 @@ y_toy_mapie = {
         [False, True, True],
         [False, True, True],
         [False, True, True],
+        [False, True, True]
+    ],
+    "top_k_split": [
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
         [False, True, True],
+        [False, True, True],
+        [False, True, True],
+        [False, True, True]
     ],
     "raps": [
         [True, False, False],
@@ -453,7 +641,18 @@ y_toy_mapie = {
         [False, True, True],
         [False, True, True],
         [False, True, True],
-        [False, True, True],
+        [False, True, True]
+    ],
+    "raps_split": [
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False],
+        [True, True, False]
     ],
     "raps_randomized": [
         [True, False, False],
@@ -464,8 +663,19 @@ y_toy_mapie = {
         [False, True, False],
         [False, True, False],
         [False, True, True],
-        [False, False, True],
+        [False, False, True]
     ],
+    "raps_randomized_split": [
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True],
+        [True, True, True]
+    ]
 }
 
 REGULARIZATION_PARAMETERS = [
@@ -634,9 +844,10 @@ def test_default_parameters() -> None:
     assert mapie_clf.method == "score"
 
 
-def test_warning_binary_classif() -> None:
+@pytest.mark.parametrize("cv", ["prefit", "split"])
+def test_warning_binary_classif(cv: str) -> None:
     """Test that a warning is raised y is binary."""
-    mapie_clf = MapieClassifier(random_state=42)
+    mapie_clf = MapieClassifier(cv=cv, random_state=42)
     X, y = make_classification(
         n_samples=500,
         n_features=10,
@@ -681,7 +892,10 @@ def test_valid_method(method: str) -> None:
     check_is_fitted(mapie_clf, mapie_clf.fit_attributes)
 
 
-@pytest.mark.parametrize("cv", [None, -1, 2, KFold(), LeaveOneOut()])
+@pytest.mark.parametrize(
+    "cv", [None, -1, 2, KFold(), LeaveOneOut(),
+           ShuffleSplit(n_splits=1, test_size=0.5), "prefit"]
+)
 def test_valid_cv(cv: Any) -> None:
     """Test that valid cv raises no errors."""
     model = LogisticRegression(multi_class="multinomial")
@@ -777,6 +991,44 @@ def test_y_is_list_of_string(
     n_alpha = len(alpha) if hasattr(alpha, "__len__") else 1
     assert y_pred.shape == (X.shape[0],)
     assert y_ps.shape == (X.shape[0], len(np.unique(y)), n_alpha)
+
+
+@pytest.mark.parametrize(
+    "strategy", ["naive", "top_k", "score", "cumulated_score_include"]
+)
+def test_same_results_prefit_split(strategy: str) -> None:
+    """
+    Test checking that if split and prefit method have exactly
+    the same data split, then we have exactly the same results.
+    """
+    random_state = 1
+    X, y = make_classification(
+        n_samples=500,
+        n_features=10,
+        n_informative=3,
+        n_classes=n_classes,
+        random_state=random_state,
+    )
+    cv = ShuffleSplit(n_splits=1, test_size=0.5, random_state=random_state)
+    train_index, val_index = next(cv.split(X))
+    X_train_, X_calib_ = X[train_index], X[val_index]
+    y_train_, y_calib_ = y[train_index], y[val_index]
+
+    args_init, args_predict = deepcopy(STRATEGIES[strategy + '_split'])
+    args_init["cv"] = cv
+    mapie_reg = MapieClassifier(**args_init)
+    mapie_reg.fit(X, y)
+    y_pred_1, y_pis_1 = mapie_reg.predict(X, alpha=0.1, **args_predict)
+
+    args_init, _ = STRATEGIES[strategy]
+    model = LogisticRegression().fit(X_train_, y_train_)
+    mapie_reg = MapieClassifier(estimator=model, **args_init)
+    mapie_reg.fit(X_calib_, y_calib_)
+    y_pred_2, y_pis_2 = mapie_reg.predict(X, alpha=0.1, **args_predict)
+
+    np.testing.assert_allclose(y_pred_1, y_pred_2)
+    np.testing.assert_allclose(y_pis_1[:, 0, 0], y_pis_2[:, 0, 0])
+    np.testing.assert_allclose(y_pis_1[:, 1, 0], y_pis_2[:, 1, 0])
 
 
 @pytest.mark.parametrize("strategy", [*STRATEGIES])
@@ -992,7 +1244,10 @@ def test_valid_prediction(alpha: Any) -> None:
 def test_toy_dataset_predictions(strategy: str) -> None:
     """Test prediction sets estimated by MapieClassifier on a toy dataset"""
     args_init, args_predict = STRATEGIES[strategy]
-    clf = LogisticRegression().fit(X_toy, y_toy)
+    if "split" not in strategy:
+        clf = LogisticRegression().fit(X_toy, y_toy)
+    else:
+        clf = LogisticRegression()
     mapie_clf = MapieClassifier(estimator=clf, **args_init)
     mapie_clf.fit(X_toy, y_toy, size_raps=.5)
     _, y_ps = mapie_clf.predict(
@@ -1207,7 +1462,7 @@ def test_pipeline_compatibility(strategy: str) -> None:
     mapie.predict(X)
 
 
-def test_pred_proba_float64():
+def test_pred_proba_float64() -> None:
     """Check that the method _check_proba_normalized returns float64."""
     y_pred_proba = np.random.random((1000, 10)).astype(np.float32)
     sum_of_rows = y_pred_proba.sum(axis=1)
@@ -1219,8 +1474,9 @@ def test_pred_proba_float64():
 
 
 @pytest.mark.parametrize("cv", ["prefit", None])
-def test_classif_float32(cv):
-    """Check that by returning float64 arrays there are not
+def test_classif_float32(cv) -> None:
+    """
+    Check that by returning float64 arrays there are not
     empty predictions sets with naive method using both
     prefit and cv=5. If the y_pred_proba was still in
     float32, as the quantile=0.90 would have been equal
@@ -1256,8 +1512,9 @@ def test_classif_float32(cv):
 
 
 @pytest.mark.parametrize("k_lambda", REGULARIZATION_PARAMETERS)
-def test_regularize_conf_scores_shape(k_lambda):
-    """Test that the conformity scores have the correct shape.
+def test_regularize_conf_scores_shape(k_lambda) -> None:
+    """
+    Test that the conformity scores have the correct shape.
     """
     lambda_, k = k_lambda[0], k_lambda[1]
     args_init, _ = STRATEGIES["raps"]
@@ -1272,8 +1529,9 @@ def test_regularize_conf_scores_shape(k_lambda):
     assert reg_conf_scores.shape == (100, 1, len(k))
 
 
-def test_get_true_label_cumsum_proba_shape():
-    """Test that the true label cumsumed probabilities
+def test_get_true_label_cumsum_proba_shape() -> None:
+    """
+    Test that the true label cumsumed probabilities
     have the correct shape.
     """
     clf = LogisticRegression()
@@ -1288,8 +1546,9 @@ def test_get_true_label_cumsum_proba_shape():
     assert cutoff.shape == (len(X), )
 
 
-def test_get_true_label_cumsum_proba_result():
-    """Test that the true label cumsumed probabilities
+def test_get_true_label_cumsum_proba_result() -> None:
+    """
+    Test that the true label cumsumed probabilities
     are the expected ones.
     """
     clf = LogisticRegression()
@@ -1320,7 +1579,8 @@ def test_get_true_label_cumsum_proba_result():
 @pytest.mark.parametrize("k_lambda", REGULARIZATION_PARAMETERS)
 @pytest.mark.parametrize("strategy", [*STRATEGIES])
 def test_get_last_included_proba_shape(k_lambda, strategy):
-    """Test that the outputs of _get_last_included_proba method
+    """
+    Test that the outputs of _get_last_included_proba method
     have the correct shape.
     """
     lambda_, k = k_lambda[0], k_lambda[1]
@@ -1349,8 +1609,11 @@ def test_get_last_included_proba_shape(k_lambda, strategy):
 
 
 @pytest.mark.parametrize("y_true_proba_place", Y_TRUE_PROBA_PLACE)
-def test_get_true_label_position(y_true_proba_place: List[NDArray]):
-    """Check that the returned true label position the good.
+def test_get_true_label_position(
+    y_true_proba_place: List[NDArray]
+) -> None:
+    """
+    Check that the returned true label position the good.
     """
     y_true = y_true_proba_place[0]
     y_pred_proba = y_true_proba_place[1]
@@ -1363,10 +1626,134 @@ def test_get_true_label_position(y_true_proba_place: List[NDArray]):
 
 
 @pytest.mark.parametrize("cv", [5, None])
-def test_error_raps_cv_not_prefit(cv: Union[int, None]):
-    """Test that an error is raised if the method is RAPS
-    and cv is different from prefit.
+def test_error_raps_cv_not_prefit(cv: Union[int, None]) -> None:
+    """
+    Test that an error is raised if the method is RAPS
+    and cv is different from prefit and split.
     """
     mapie = MapieClassifier(method="raps", cv=5)
     with pytest.raises(ValueError, match=r".*RAPS method can only.*"):
         mapie.fit(X_toy, y_toy)
+
+
+def test_not_all_label_in_calib() -> None:
+    """
+    Test that the true label cumsumed probabilities
+    have the correct shape.
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    indices_remove = np.where(y != 2)
+    X_mapie = X[indices_remove]
+    y_mapie = y[indices_remove]
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    mapie_clf.fit(X_mapie, y_mapie)
+    y_pred, y_pss = mapie_clf.predict(X, alpha=0.5)
+    assert y_pred.shape == (len(X), )
+    assert y_pss.shape == (len(X), len(np.unique(y)), 1)
+
+
+def test_warning_not_all_label_in_calib() -> None:
+    """
+    Test that a warning is raised y is binary.
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    indices_remove = np.where(y != 2)
+    X_mapie = X[indices_remove]
+    y_mapie = y[indices_remove]
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    with pytest.warns(
+        UserWarning, match=r".*WARNING: your calibration dataset.*"
+    ):
+        mapie_clf.fit(X_mapie, y_mapie)
+
+
+def test_n_classes_prefit() -> None:
+    """
+    Test that the attribute n_classes_ has the correct
+    value with cv="prefit".
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    indices_remove = np.where(y != 2)
+    X_mapie = X[indices_remove]
+    y_mapie = y[indices_remove]
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    mapie_clf.fit(X_mapie, y_mapie)
+    assert mapie_clf.n_classes_ == len(np.unique(y))
+
+
+def test_classes_prefit() -> None:
+    """
+    Test that the attribute classes_ has the correct
+    value with cv="prefit".
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    indices_remove = np.where(y != 2)
+    X_mapie = X[indices_remove]
+    y_mapie = y[indices_remove]
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    mapie_clf.fit(X_mapie, y_mapie)
+    assert (mapie_clf.classes_ == np.unique(y)).all()
+
+
+def test_n_classes_cv() -> None:
+    """
+    Test that the attribute n_classes_ has the correct
+    value with cross_validation.
+    """
+    clf = LogisticRegression()
+
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv=5
+    )
+    mapie_clf.fit(X, y)
+    assert mapie_clf.n_classes_ == len(np.unique(y))
+
+
+def test_classes_cv() -> None:
+    """
+    Test that the attribute classes_ has the correct
+    value with cross_validation.
+    """
+    clf = LogisticRegression()
+
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv=5
+    )
+    mapie_clf.fit(X, y)
+    assert (mapie_clf.classes_ == np.unique(y)).all()
+
+
+def test_raise_error_new_class() -> None:
+    """
+    Test that the attribute if there is an unseen
+    classe in `y` then an error is raised.
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    y[-1] = 10
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    with pytest.raises(
+        ValueError, match=r".*Values in y do not matched values.*"
+    ):
+        mapie_clf.fit(X, y)

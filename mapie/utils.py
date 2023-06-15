@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.base import ClassifierMixin, RegressorMixin
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (BaseCrossValidator, KFold, LeaveOneOut,
+                                     BaseShuffleSplit, ShuffleSplit,
                                      train_test_split)
 from sklearn.pipeline import Pipeline
 from sklearn.utils import _safe_indexing
@@ -128,11 +129,13 @@ def fit_estimator(
 
 
 def check_cv(
-    cv: Optional[Union[int, str, BaseCrossValidator]] = None
+    cv: Optional[Union[int, str, BaseCrossValidator]] = None,
+    test_size: Optional[Union[int, float]] = None,
+    random_state: Optional[Union[int, np.random.RandomState]] = None,
 ) -> Union[str, BaseCrossValidator]:
     """
     Check if cross-validator is
-    ``None``, ``int``, ``"prefit"`` or ``BaseCrossValidator``.
+    ``None``, ``int``, ``"prefit"``, ``"split"``or ``BaseCrossValidator``.
     Return a ``LeaveOneOut`` instance if integer equal to -1.
     Return a ``KFold`` instance if integer superior or equal to 2.
     Return a ``KFold`` instance if ``None``.
@@ -142,6 +145,21 @@ def check_cv(
     ----------
     cv : Optional[Union[int, str, BaseCrossValidator]], optional
         Cross-validator to check, by default ``None``.
+
+    test_size: Optional[Union[int, float]]
+        If float, should be between 0.0 and 1.0 and represent the proportion
+        of the dataset to include in the test split. If int, represents the
+        absolute number of test samples. If None, it will be set to 0.1.
+
+        If cv is not ``"split"``, ``test_size`` is ignored.
+
+        By default ``None``.
+
+    random_state : Optional[Union[int, np.random.RandomState]], optional
+        Pseudo random number generator state used for random uniform sampling
+        for evaluation quantiles and prediction sets in cumulated_score.
+        Pass an int for reproducible output across multiple function calls.
+        By default ```None``.
 
     Returns
     -------
@@ -154,23 +172,37 @@ def check_cv(
         If the cross-validator is not valid.
     """
     if cv is None:
-        return KFold(n_splits=5)
-    if isinstance(cv, int):
+        return KFold(
+            n_splits=5, shuffle=True, random_state=random_state
+        )
+    elif isinstance(cv, int):
         if cv == -1:
             return LeaveOneOut()
-        if cv >= 2:
-            return KFold(n_splits=cv)
-    if (
-        isinstance(cv, BaseCrossValidator)
-        or (cv == "prefit")
-        or (cv == "split")
-    ):
+        elif cv >= 2:
+            return KFold(
+                n_splits=cv, shuffle=True, random_state=random_state
+            )
+        else:
+            raise ValueError(
+                "Invalid cv argument. "
+                "Allowed integer values are -1 or int >= 2."
+            )
+    elif isinstance(cv, BaseCrossValidator):
         return cv
-    raise ValueError(
-        "Invalid cv argument. "
-        "Allowed values are None, -1, int >= 2, 'prefit', "
-        "or a BaseCrossValidator object (Kfold, LeaveOneOut)."
-    )
+    elif isinstance(cv, BaseShuffleSplit):
+        return cv
+    elif cv == "prefit":
+        return cv
+    elif cv == "split":
+        return ShuffleSplit(
+            n_splits=1, test_size=test_size, random_state=random_state
+        )
+    else:
+        raise ValueError(
+            "Invalid cv argument. "
+            "Allowed values are None, -1, int >= 2, 'prefit', 'split', "
+            "or a BaseCrossValidator object (Kfold, LeaveOneOut)."
+        )
 
 
 def check_alpha(
@@ -511,12 +543,10 @@ def check_conformity_score(
 ) -> ConformityScore:
     """
     Check parameter ``conformity_score``.
-
     Raises
     ------
     ValueError
         If parameter is not valid.
-
     Examples
     --------
     >>> from mapie.utils import check_conformity_score
