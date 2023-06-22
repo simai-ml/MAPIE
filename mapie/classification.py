@@ -189,7 +189,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
      [False False  True]
      [False False  True]]
     """
-
+    raps_valid_cv_ = ["prefit", "split"]
     valid_methods_ = [
         "naive",
         "score",
