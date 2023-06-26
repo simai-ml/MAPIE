@@ -5,10 +5,13 @@ History
 ##### (##########)
 ------------------
 
+* Add grouped conditional coverage metrics named SSC for regression and classification
+* Add HSIC metric for regression
 * Migrate conformity scores classes into conformity_scores module
 * Migrate regression classes into regression module
 * Add split conformal option for regression and classification
 * Update check method for calibration
+* Fix bug in MapieClassifier with different number of labels in calibration dataset.
 
 0.6.4 (2023-04-05)
 ------------------

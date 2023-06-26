@@ -30,5 +30,6 @@ Contributors
 * Arnaud Capitaine <arnaud.gc.capitaine@gmail.com>
 * Tarik Tazi <ttazi@quantmetry.com>
 * Daniel Herbst <daniel.herbst@tum.de>
+* Candice Moyet <cmoyet@quantmetry.com>
 
 To be continued ...
