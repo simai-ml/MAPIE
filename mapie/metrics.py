@@ -1,10 +1,16 @@
-from typing import Optional, cast
+from typing import Optional, cast, Union
 
 import numpy as np
 from sklearn.utils.validation import check_array, column_or_1d
 
 from ._typing import ArrayLike, NDArray
-from .utils import (calc_bins, check_binary_zero_one, check_number_bins,
+from .utils import (calc_bins,
+                    check_array_shape_classification,
+                    check_array_shape_regression,
+                    check_binary_zero_one,
+                    check_nb_intervals_sizes,
+                    check_nb_sets_sizes,
+                    check_number_bins,
                     check_split_strategy)
 
 
@@ -21,11 +27,11 @@ def regression_coverage_score(
 
     Parameters
     ----------
-    y_true : ArrayLike of shape (n_samples,)
+    y_true: ArrayLike of shape (n_samples,)
         True labels.
-    y_pred_low : ArrayLike of shape (n_samples,)
+    y_pred_low: ArrayLike of shape (n_samples,)
         Lower bound of prediction intervals.
-    y_pred_up : ArrayLike of shape (n_samples,)
+    y_pred_up: ArrayLike of shape (n_samples,)
         Upper bound of prediction intervals.
 
     Returns
@@ -64,9 +70,9 @@ def classification_coverage_score(
 
     Parameters
     ----------
-    y_true : ArrayLike of shape (n_samples,)
+    y_true: ArrayLike of shape (n_samples,)
         True labels.
-    y_pred_set : ArrayLike of shape (n_samples, n_class)
+    y_pred_set: ArrayLike of shape (n_samples, n_class)
         Prediction sets given by booleans of labels.
 
     Returns
@@ -111,9 +117,9 @@ def regression_mean_width_score(
 
     Parameters
     ----------
-    y_pred_low : ArrayLike of shape (n_samples,)
+    y_pred_low: ArrayLike of shape (n_samples,)
         Lower bound of prediction intervals.
-    y_pred_up : ArrayLike of shape (n_samples,)
+    y_pred_up: ArrayLike of shape (n_samples,)
         Upper bound of prediction intervals.
 
     Returns
@@ -143,7 +149,7 @@ def classification_mean_width_score(y_pred_set: ArrayLike) -> float:
 
     Parameters
     ----------
-    y_pred_set : ArrayLike of shape (n_samples, n_class)
+    y_pred_set: ArrayLike of shape (n_samples, n_class)
         Prediction sets given by booleans of labels.
 
     Returns
@@ -191,14 +197,14 @@ def expected_calibration_error(
 
     Parameters
     ----------
-    y_true : ArrayLike of shape (n_samples,)
+    y_true: ArrayLike of shape (n_samples,)
         The target values for the calibrator.
-    y_score : ArrayLike of shape (n_samples,) or (n_samples, n_classes)
+    y_score: ArrayLike of shape (n_samples,) or (n_samples, n_classes)
         The predictions scores.
-    num_bins : int
+    num_bins: int
         Number of bins to make the split in the y_score. The allowed
         values are num_bins above 0.
-    split_strategy : str
+    split_strategy: str
         The way of splitting the predictions into different bins.
         The allowed split strategies are "uniform", "quantile" and
         "array split".
@@ -247,25 +253,25 @@ def top_label_ece(
 
     Parameters
     ----------
-    y_true : ArrayLike of shape (n_samples,)
+    y_true: ArrayLike of shape (n_samples,)
         The target values for the calibrator.
-    y_scores : ArrayLike of shape (n_samples, n_classes)
+    y_scores: ArrayLike of shape (n_samples, n_classes)
     or (n_samples,)
         The predictions scores, either the maximum score and the
         argmax needs to be inputted or in the form of the prediction
         probabilities.
-    y_score_arg : Optional[ArrayLike] of shape (n_samples,)
+    y_score_arg: Optional[ArrayLike] of shape (n_samples,)
         If only the maximum is provided in the y_scores, the argmax must
         be provided here. This is optional and could be directly infered
         from the y_scores.
-    num_bins : int
+    num_bins: int
         Number of bins to make the split in the y_score. The allowed
         values are num_bins above 0.
-    split_strategy : str
+    split_strategy: str
         The way of splitting the predictions into different bins.
         The allowed split strategies are "uniform", "quantile" and
         "array split".
-    classes : ArrayLike of shape (n_samples,)
+    classes: ArrayLike of shape (n_samples,)
         The different classes, in order of the indices that would be
         present in a pred_proba.
 
@@ -307,3 +313,427 @@ def top_label_ece(
         )
     ece /= len(labels)
     return ece
+
+
+def regression_coverage_score_v2(
+    y_true: NDArray,
+    y_intervals: NDArray,
+) -> NDArray:
+    """
+    Effective coverage score obtained by the prediction intervals.
+
+    The effective coverage is obtained by estimating the fraction
+    of true labels that lie within the prediction intervals.
+
+    It is different from ``regression_coverage_score`` because it uses
+    directly the output of ``predict`` method and can compute the
+    coverage for each alpha.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples, n_alpha) or (n_samples,)
+        True labels.
+    y_intervals: NDArray of shape (n_samples, 2, n_alpha)
+        Lower and upper bound of prediction intervals
+        with different alpha risks.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha,)
+        Effective coverage obtained by the prediction intervals.
+    """
+    y_intervals = check_array_shape_regression(y_true, y_intervals)
+    if len(y_true.shape) != 2:
+        y_true = cast(NDArray, column_or_1d(y_true))
+        y_true = np.expand_dims(y_true, axis=1)
+    coverages = np.mean(
+        np.logical_and(
+            np.less_equal(y_intervals[:, 0, :], y_true),
+            np.greater_equal(y_intervals[:, 1, :], y_true)
+        ),
+        axis=0
+    )
+    return coverages
+
+
+def classification_coverage_score_v2(
+    y_true: NDArray,
+    y_pred_set: NDArray
+) -> NDArray:
+    """
+    Effective coverage score obtained by the prediction sets.
+
+    The effective coverage is obtained by estimating the fraction
+    of true labels that lie within the prediction sets.
+
+    It is different from ``classification_coverage_score`` because it uses
+    directly the output of ``predict`` method and can compute the
+    coverage for each alpha.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples, n_alpha) or (n_samples,)
+        True labels.
+    y_pred_set: NDArray of shape (n_samples, n_class, n_alpha)
+        Prediction sets given by booleans of labels.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha,)
+        Effective coverage obtained by the prediction sets.
+    """
+    y_pred_set = check_array_shape_classification(y_true, y_pred_set)
+    if len(y_true.shape) != 2:
+        y_true = cast(NDArray, column_or_1d(y_true))
+        y_true = np.expand_dims(y_true, axis=1)
+    y_true = np.expand_dims(y_true, axis=1)
+    coverage = np.nanmean(
+        np.take_along_axis(y_pred_set, y_true, axis=1),
+        axis=0
+    )
+    return coverage[0]
+
+
+def regression_ssc(
+    y_true: NDArray,
+    y_intervals: NDArray,
+    num_bins: int = 3
+) -> NDArray:
+    """
+    Compute Size-Stratified Coverage metrics proposed in [3] that is
+    the conditional coverage conditioned by the size of the intervals.
+    The intervals are ranked by their size (ascending) and then divided into
+    num_bins groups: one value of coverage by groups is computed.
+
+    Warning: This metric should be used only with non constant intervals
+    (intervals of different sizes), with constant intervals the result
+    may be misinterpreted.
+
+    [3] Angelopoulos, A. N., & Bates, S. (2021).
+    A gentle introduction to conformal prediction and
+    distribution-free uncertainty quantification.
+    arXiv preprint arXiv:2107.07511.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples,)
+        True labels.
+    y_intervals: NDArray of shape (n_samples, 2, n_alpha) or (n_samples, 2)
+        Prediction intervals given by booleans of labels.
+    num_bins: int n
+        Number of groups. Should be less than the number of different
+        interval widths.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha, num_bins)
+
+    Examples
+    --------
+    >>> from mapie.metrics import regression_ssc
+    >>> import numpy as np
+    >>> y_true = np.array([5, 7.5, 9.5])
+    >>> y_intervals = np.array([
+    ... [4, 6],
+    ... [6.0, 9.0],
+    ... [9, 10.0]
+    ... ])
+    >>> print(regression_ssc(y_true, y_intervals, num_bins=2))
+    [[1. 1.]]
+    """
+    y_true = cast(NDArray, column_or_1d(y_true))
+    y_intervals = check_array_shape_regression(y_true, y_intervals)
+    check_number_bins(num_bins)
+    widths = np.abs(y_intervals[:, 1, :] - y_intervals[:, 0, :])
+    check_nb_intervals_sizes(widths, num_bins)
+
+    indexes_sorted = np.argsort(widths, axis=0)
+    indexes_bybins = np.array_split(indexes_sorted, num_bins, axis=0)
+    coverages = np.zeros((y_intervals.shape[2], num_bins))
+    for i, indexes in enumerate(indexes_bybins):
+        intervals_binned = np.stack([
+            np.take_along_axis(y_intervals[:, 0, :], indexes, axis=0),
+            np.take_along_axis(y_intervals[:, 1, :], indexes, axis=0)
+        ], axis=1)
+        coverages[:, i] = regression_coverage_score_v2(y_true[indexes],
+                                                       intervals_binned)
+
+    return coverages
+
+
+def regression_ssc_score(
+    y_true: NDArray,
+    y_intervals: NDArray,
+    num_bins: int = 3
+) -> NDArray:
+    """
+    Aggregate by the minimum for each alpha the Size-Stratified Coverage [3]:
+    returns the maximum violation of the conditional coverage
+    (with the groups defined).
+
+    Warning: This metric should be used only with non constant intervals
+    (intervals of different sizes), with constant intervals the result
+    may be misinterpreted.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples,)
+        True labels.
+    y_intervals: NDArray of shape (n_samples, 2, n_alpha) or (n_samples, 2)
+        Prediction intervals given by booleans of labels.
+    num_bins: int n
+        Number of groups. Should be less than the number of different
+        interval widths.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha,)
+
+    Examples
+    --------
+    >>> from mapie.metrics import regression_ssc
+    >>> import numpy as np
+    >>> y_true = np.array([5, 7.5, 9.5])
+    >>> y_intervals = np.array([
+    ... [[4, 4], [6, 7.5]],
+    ... [[6.0, 8], [9.0, 10]],
+    ... [[9, 9], [10.0, 10.0]]
+    ... ])
+    >>> print(regression_ssc_score(y_true, y_intervals, num_bins=2))
+    [1.  0.5]
+    """
+    return np.min(regression_ssc(y_true, y_intervals, num_bins), axis=1)
+
+
+def classification_ssc(
+    y_true: NDArray,
+    y_pred_set: NDArray,
+    num_bins: Union[int, None] = None
+) -> NDArray:
+    """
+    Compute Size-Stratified Coverage metrics proposed in [3] that is
+    the conditional coverage conditioned by the size of the predictions sets.
+    The sets are ranked by their size (ascending) and then divided into
+    num_bins groups: one value of coverage by groups is computed.
+
+    [3] Angelopoulos, A. N., & Bates, S. (2021).
+    A gentle introduction to conformal prediction and
+    distribution-free uncertainty quantification.
+    arXiv preprint arXiv:2107.07511.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples,)
+        True labels.
+    y_pred_set: NDArray of shape (n_samples, n_class, n_alpha)
+    or (n_samples, n_class)
+        Prediction sets given by booleans of labels.
+    num_bins: int or None
+        Number of groups. If None, one value of coverage by possible
+        size of sets (n_classes +1) is computed. Should be less than the
+        number of different set sizes.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha, num_bins)
+
+    Examples
+    --------
+    >>> from mapie.metrics import classification_ssc
+    >>> import numpy as np
+    >>> y_true = y_true_class = np.array([3, 3, 1, 2, 2])
+    >>> y_pred_set = np.array([
+    ...    [True, True, True, True],
+    ...    [False, True, False, True],
+    ...    [True, True, True, False],
+    ...    [False, False, True, True],
+    ...    [True, True, False, True]])
+    >>> print(classification_ssc(y_true, y_pred_set, num_bins=2))
+    [[1.         0.66666667]]
+    """
+    y_true = cast(NDArray, column_or_1d(y_true))
+    y_pred_set = check_array_shape_classification(y_true, y_pred_set)
+
+    sizes = np.sum(y_pred_set, axis=1)
+    n_classes = y_pred_set.shape[1]
+    if num_bins is None:
+        bins = list(range(n_classes + 1))
+    else:
+        check_nb_sets_sizes(sizes, num_bins)
+        check_number_bins(num_bins)
+        bins = [
+            b[0] for b in np.array_split(range(n_classes + 1), num_bins)
+        ]
+
+    digitized_sizes = np.digitize(sizes, bins)
+    coverages = np.zeros((y_pred_set.shape[2], len(bins)))
+    for alpha in range(y_pred_set.shape[2]):
+        indexes_bybins = [
+            np.argwhere(digitized_sizes[:, alpha] == i)
+            for i in range(1, len(bins)+1)
+        ]
+
+        for i, indexes in enumerate(indexes_bybins):
+            coverages[alpha, i] = classification_coverage_score_v2(
+                y_true[indexes],
+                np.take_along_axis(
+                    y_pred_set[:, :, alpha],
+                    indexes,
+                    axis=0
+                )
+            )
+    return coverages
+
+
+def classification_ssc_score(
+    y_true: NDArray,
+    y_pred_set: NDArray,
+    num_bins: Union[int, None] = None
+) -> NDArray:
+    """
+    Aggregate by the minimum for each alpha the Size-Stratified Coverage [3]:
+    returns the maximum violation of the conditional coverage
+    (with the groups defined).
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples,)
+        True labels.
+    y_pred_set: NDArray of shape (n_samples, n_class, n_alpha)
+    or (n_samples, n_class)
+        Prediction sets given by booleans of labels.
+    num_bins: int or None
+        Number of groups. If None, one value of coverage by possible
+        size of sets (n_classes +1) is computed. Should be less than
+        the number of different set sizes.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha,)
+
+    Examples
+    --------
+    >>> from mapie.metrics import classification_ssc_score
+    >>> import numpy as np
+    >>> y_true = y_true_class = np.array([3, 3, 1, 2, 2])
+    >>> y_pred_set = np.array([
+    ...    [True, True, True, True],
+    ...    [False, True, False, True],
+    ...    [True, True, True, False],
+    ...    [False, False, True, True],
+    ...    [True, True, False, True]])
+    >>> print(classification_ssc_score(y_true, y_pred_set, num_bins=2))
+    [0.66666667]
+    """
+    return np.nanmin(classification_ssc(y_true, y_pred_set, num_bins), axis=1)
+
+
+def _gaussian_kernel(
+    x: NDArray,
+    kernel_size: int
+) -> NDArray:
+    """
+    Computes the gaussian kernel of x. (Used in hsic function)
+
+    Parameters
+    ----------
+    x: NDArray
+        The values from which to compute the gaussian kernel.
+    kernel_size: int
+        The variance (sigma), this coefficient controls the width of the curve.
+    """
+    norm_x = x ** 2
+    dist = -2 * np.matmul(x, x.transpose((0, 2, 1))) \
+        + norm_x + norm_x.transpose((0, 2, 1))
+    return np.exp(-dist / kernel_size)
+
+
+def hsic(
+    y_true: NDArray,
+    y_intervals: NDArray,
+    kernel_sizes: ArrayLike = (1, 1)
+) -> NDArray:
+    """
+    Compute the square root of the hsic coefficient. HSIC is Hilbert-Schmidt
+    independence criterion that is a correlation measure. Here we use it as
+    proposed in [4], to compute the correlation between the indicator of
+    coverage and the interval size.
+
+    If hsic is 0, the two variables (the indicator of coverage and the
+    interval size) are independant.
+
+    Warning: This metric should be used only with non constant intervals
+    (intervals of different sizes), with constant intervals the result
+    may be misinterpreted.
+
+    [4] Feldman, S., Bates, S., & Romano, Y. (2021).
+    Improving conditional coverage via orthogonal quantile regression.
+    Advances in Neural Information Processing Systems, 34, 2060-2071.
+
+    Parameters
+    ----------
+    y_true: NDArray of shape (n_samples,)
+        True labels.
+    y_intervals: NDArray of shape (n_samples, 2, n_alpha) or (n_samples, 2)
+        Prediction sets given by booleans of labels.
+    kernel_sizes: ArrayLike of size (2,)
+        The variance (sigma) for each variable (the indicator of coverage and
+        the interval size), this coefficient controls the width of the curve.
+
+    Returns
+    -------
+    NDArray of shape (n_alpha,)
+        One hsic correlation coefficient by alpha.
+
+    Raises
+    ------
+    ValueError
+        If kernel_sizes has a length different from 2
+        and if it has negative or null values.
+
+    Examples
+    -------
+    >>> from mapie.metrics import hsic
+    >>> import numpy as np
+    >>> y_true = np.array([9.5, 10.5, 12.5])
+    >>> y_intervals = np.array([
+    ... [[9, 9], [10.0, 10.0]],
+    ... [[8.5, 9], [12.5, 12]],
+    ... [[10.5, 10.5], [12.0, 12]]
+    ... ])
+    >>> print(hsic(y_true, y_intervals))
+    [0.31787614 0.2962914 ]
+    """
+    y_true = cast(NDArray, column_or_1d(y_true))
+    y_intervals = check_array_shape_regression(y_true, y_intervals)
+    kernel_sizes = cast(NDArray, column_or_1d(kernel_sizes))
+    if len(kernel_sizes) != 2:
+        raise ValueError(
+            "kernel_sizes should be an ArrayLike of length 2"
+        )
+    if (kernel_sizes <= 0).any():
+        raise ValueError(
+            "kernel_size should be positive"
+        )
+    n_samples, _, n_alpha = y_intervals.shape
+    y_true_per_alpha = np.tile(y_true, (n_alpha, 1)).transpose()
+    widths = np.expand_dims(
+        np.abs(y_intervals[:, 1, :] - y_intervals[:, 0, :]).transpose(),
+        axis=2
+    )
+    cov_ind = np.expand_dims(
+        np.int_(
+            ((y_intervals[:, 0, :] <= y_true_per_alpha) &
+             (y_intervals[:, 1, :] >= y_true_per_alpha))
+        ).transpose(),
+        axis=2
+    )
+
+    k_mat = _gaussian_kernel(widths, kernel_sizes[0])
+    l_mat = _gaussian_kernel(cov_ind, kernel_sizes[1])
+    h_mat = np.eye(n_samples) - 1 / n_samples * np.ones((n_samples, n_samples))
+    hsic_mat = np.matmul(l_mat, np.matmul(h_mat, np.matmul(k_mat, h_mat)))
+    hsic_mat /= ((n_samples - 1) ** 2)
+    coef_hsic = np.sqrt(np.matrix.trace(hsic_mat, axis1=1, axis2=2))
+
+    return coef_hsic

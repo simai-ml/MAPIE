@@ -1711,6 +1711,24 @@ def test_classes_prefit() -> None:
     assert (mapie_clf.classes_ == np.unique(y)).all()
 
 
+def test_classes_encoder_same_than_model() -> None:
+    """
+    Test that the attribute label encoder has the same
+    classes as the prefit model
+    """
+    clf = LogisticRegression()
+    clf.fit(X, y)
+    indices_remove = np.where(y != 2)
+    X_mapie = X[indices_remove]
+    y_mapie = y[indices_remove]
+    mapie_clf = MapieClassifier(
+        estimator=clf, method="cumulated_score",
+        cv="prefit"
+    )
+    mapie_clf.fit(X_mapie, y_mapie)
+    assert (mapie_clf.label_encoder_.classes_ == np.unique(y)).all()
+
+
 def test_n_classes_cv() -> None:
     """
     Test that the attribute n_classes_ has the correct

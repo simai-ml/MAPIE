@@ -189,7 +189,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
      [False False  True]
      [False False  True]]
     """
-
+    raps_valid_cv_ = ["prefit", "split"]
     valid_methods_ = [
         "naive",
         "score",
@@ -950,13 +950,14 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
 
         n_samples = _num_samples(y)
 
-        self.n_classes_, self.classes_ = self._get_classes_info(estimator, y)
-
+        self.n_classes_, self.classes_ = self._get_classes_info(
+            estimator, y
+        )
         enc = LabelEncoder()
         enc.fit(self.classes_)
         y_enc = enc.transform(y)
-        self.label_encoder_ = enc
 
+        self.label_encoder_ = enc
         check_classification_targets(y)
         self._target_type = type_of_target(y)
 
