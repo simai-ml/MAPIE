@@ -189,6 +189,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
      [False False  True]
      [False False  True]]
     """
+
     raps_valid_cv_ = ["prefit", "split"]
     valid_methods_ = [
         "naive",
@@ -198,6 +199,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         "raps",
         "crf_score",
         "crf_aps",
+        "ssaps",
     ]
     fit_attributes = [
         "single_estimator_",
@@ -580,7 +582,10 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         return estimator, y_pred_proba, val_id, val_index
 
     def _get_true_label_cumsum_proba(
-        self, y: ArrayLike, y_pred_proba: NDArray
+        self,
+        y: ArrayLike,
+        y_pred_proba: NDArray,
+        residuals: Optional[Union[None, ArrayLike]] = None,
     ) -> Tuple[NDArray, NDArray]:
         """
         Compute the cumsumed probability of the true label.
@@ -603,7 +608,19 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         index_sorted = np.fliplr(np.argsort(y_pred_proba, axis=1))
         y_pred_proba_sorted = np.take_along_axis(y_pred_proba, index_sorted, axis=1)
         y_true_sorted = np.take_along_axis(y_true, index_sorted, axis=1)
-        y_pred_proba_sorted_cumsum = np.cumsum(y_pred_proba_sorted, axis=1)
+        if self.method == "ssaps":
+            penalized_residuals = np.empty((residuals.shape[0], len(self.classes_)))
+            for j in range(len(self.classes_)):
+                penalized_residuals[:, j] = 1 - (residuals[j] ** j)
+            y_pred_proba_penalized_sorted = np.multiply(
+                penalized_residuals, y_pred_proba_sorted
+            )
+            y_pred_proba_sorted_cumsum = np.cumsum(
+                y_pred_proba_penalized_sorted, axis=1
+            )
+        else:
+            y_pred_proba_sorted_cumsum = np.cumsum(y_pred_proba_sorted, axis=1)
+
         cutoff = np.argmax(y_true_sorted, axis=1)
         true_label_cumsum_proba = np.take_along_axis(
             y_pred_proba_sorted_cumsum, cutoff.reshape(-1, 1), axis=1
@@ -674,6 +691,8 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         include_last_label: Union[bool, str, None],
         lambda_: Union[NDArray, float, None],
         k_star: Union[NDArray, Any],
+        residuals: Optional[Union[None, ArrayLike]] = None,
+        alpha_np: NDArray = None,
     ) -> Tuple[NDArray, NDArray, NDArray]:
         """
         Function that returns the smallest score
@@ -707,8 +726,22 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         index_sorted = np.flip(np.argsort(y_pred_proba, axis=1), axis=1)
         # sort probabilities by decreasing order
         y_pred_proba_sorted = np.take_along_axis(y_pred_proba, index_sorted, axis=1)
-        # get sorted cumulated score
-        y_pred_proba_sorted_cumsum = np.cumsum(y_pred_proba_sorted, axis=1)
+
+        if self.method == "ssaps":
+            penalized_residuals = np.empty(
+                (residuals.shape[0], len(self.classes_), len(alpha_np))
+            )
+            for j in range(1, len(self.classes_) + 1):
+                penalized_residuals[:, j - 1] = 1 - (residuals[j - 1] ** (j - 1))
+            y_pred_proba_penalized_sorted = np.multiply(
+                penalized_residuals, y_pred_proba_sorted
+            )
+            y_pred_proba_sorted_cumsum = np.cumsum(
+                y_pred_proba_penalized_sorted, axis=1
+            )
+        else:
+            # get sorted cumulated score
+            y_pred_proba_sorted_cumsum = np.cumsum(y_pred_proba_sorted, axis=1)
 
         if self.method == "raps":
             y_pred_proba_sorted_cumsum += lambda_ * np.maximum(
@@ -950,9 +983,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
 
         n_samples = _num_samples(y)
 
-        self.n_classes_, self.classes_ = self._get_classes_info(
-            estimator, y
-        )
+        self.n_classes_, self.classes_ = self._get_classes_info(estimator, y)
         enc = LabelEncoder()
         enc.fit(self.classes_)
         y_enc = enc.transform(y)
@@ -1048,11 +1079,17 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 )
                 if self.method == "crf_score":
                     self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
-            elif self.method in ["cumulated_score", "raps", "crf_aps"]:
-                (
-                    self.conformity_scores_,
-                    self.cutoff,
-                ) = self._get_true_label_cumsum_proba(y, y_pred_proba)
+            elif self.method in ["cumulated_score", "raps", "crf_aps", "ssaps"]:
+                if self.method == "ssaps":
+                    (
+                        self.conformity_scores_,
+                        self.cutoff,
+                    ) = self._get_true_label_cumsum_proba(y, y_pred_proba, residuals)
+                else:
+                    (
+                        self.conformity_scores_,
+                        self.cutoff,
+                    ) = self._get_true_label_cumsum_proba(y, y_pred_proba)
                 y_proba_true = np.take_along_axis(
                     y_pred_proba, y_enc.reshape(-1, 1), axis=1
                 )
@@ -1277,24 +1314,39 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     axis=2,
                 )
 
-        elif self.method in ["cumulated_score", "naive", "raps", "crf_aps"]:
+        elif self.method in ["cumulated_score", "naive", "raps", "crf_aps", "ssaps"]:
             # specify which thresholds will be used
             if (cv == "prefit") or (agg_scores in ["mean"]):
                 thresholds = self.quantiles_
             else:
                 thresholds = self.conformity_scores_.ravel()
             # sort labels by decreasing probability
-            (
-                y_pred_proba_cumsum,
-                y_pred_index_last,
-                y_pred_proba_last,
-            ) = self._get_last_included_proba(
-                y_pred_proba,
-                thresholds,
-                include_last_label,
-                lambda_star,
-                k_star,
-            )
+            if self.method == "ssaps":
+                (
+                    y_pred_proba_cumsum,
+                    y_pred_index_last,
+                    y_pred_proba_last,
+                ) = self._get_last_included_proba(
+                    y_pred_proba,
+                    thresholds,
+                    include_last_label,
+                    lambda_star,
+                    k_star,
+                    residuals,
+                    alpha_np,
+                )
+            else:
+                (
+                    y_pred_proba_cumsum,
+                    y_pred_index_last,
+                    y_pred_proba_last,
+                ) = self._get_last_included_proba(
+                    y_pred_proba,
+                    thresholds,
+                    include_last_label,
+                    lambda_star,
+                    k_star,
+                )
             # get the prediction set by taking all probabilities
             # above the last one
             if (cv == "prefit") or (agg_scores in ["mean"]):
