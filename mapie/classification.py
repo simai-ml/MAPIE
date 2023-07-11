@@ -27,6 +27,7 @@ from .utils import (
     compute_quantiles,
     fit_estimator,
     fix_number_of_classes,
+    sig,
 )
 
 
@@ -609,9 +610,8 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         y_pred_proba_sorted = np.take_along_axis(y_pred_proba, index_sorted, axis=1)
         y_true_sorted = np.take_along_axis(y_true, index_sorted, axis=1)
         if self.method == "ssaps":
-            penalized_residuals = np.empty((residuals.shape[0], len(self.classes_)))
-            for j in range(len(self.classes_)):
-                penalized_residuals[:, j] = 1 - (residuals[j] ** j)
+            j_values = np.arange(1, len(self.classes_) + 1)
+            penalized_residuals = 1 - np.power(residuals[:, np.newaxis], j_values)
             y_pred_proba_penalized_sorted = np.multiply(
                 penalized_residuals, y_pred_proba_sorted
             )
@@ -692,7 +692,6 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         lambda_: Union[NDArray, float, None],
         k_star: Union[NDArray, Any],
         residuals: Optional[Union[None, ArrayLike]] = None,
-        alpha_np: NDArray = None,
     ) -> Tuple[NDArray, NDArray, NDArray]:
         """
         Function that returns the smallest score
@@ -728,13 +727,10 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         y_pred_proba_sorted = np.take_along_axis(y_pred_proba, index_sorted, axis=1)
 
         if self.method == "ssaps":
-            penalized_residuals = np.empty(
-                (residuals.shape[0], len(self.classes_), len(alpha_np))
-            )
-            for j in range(1, len(self.classes_) + 1):
-                penalized_residuals[:, j - 1] = 1 - (residuals[j - 1] ** (j - 1))
+            j_values = np.arange(1, len(self.classes_) + 1)
+            penalized_residuals = 1 - np.power(residuals[:, np.newaxis], j_values)
             y_pred_proba_penalized_sorted = np.multiply(
-                penalized_residuals, y_pred_proba_sorted
+                penalized_residuals[:, :, np.newaxis], y_pred_proba_sorted
             )
             y_pred_proba_sorted_cumsum = np.cumsum(
                 y_pred_proba_penalized_sorted, axis=1
@@ -1081,6 +1077,11 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
             elif self.method in ["cumulated_score", "raps", "crf_aps", "ssaps"]:
                 if self.method == "ssaps":
+                    self.residuals_mean = np.mean(residuals)
+                    self.residuals_std = np.std(residuals)
+                    residuals = sig(
+                        (residuals - self.residuals_mean) / self.residuals_std
+                    )
                     (
                         self.conformity_scores_,
                         self.cutoff,
@@ -1322,6 +1323,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 thresholds = self.conformity_scores_.ravel()
             # sort labels by decreasing probability
             if self.method == "ssaps":
+                residuals = sig((residuals - self.residuals_mean) / self.residuals_std)
                 (
                     y_pred_proba_cumsum,
                     y_pred_index_last,
@@ -1333,7 +1335,6 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     lambda_star,
                     k_star,
                     residuals,
-                    alpha_np,
                 )
             else:
                 (
