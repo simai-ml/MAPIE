@@ -5,6 +5,9 @@ History
 ##### (##########)
 ------------------
 
+0.6.5 (2023-06-06)
+------------------
+
 * Add grouped conditional coverage metrics named SSC for regression and classification
 * Add HSIC metric for regression
 * Migrate conformity scores classes into conformity_scores module

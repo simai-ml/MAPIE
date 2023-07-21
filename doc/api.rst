@@ -12,8 +12,8 @@ Regression
    :template: class.rst
 
    regression.MapieRegressor
-   quantile_regression.MapieQuantileRegressor
-   time_series_regression.MapieTimeSeriesRegressor
+   regression.MapieQuantileRegressor
+   regression.MapieTimeSeriesRegressor
 
 Classification
 ==============
@@ -23,6 +23,24 @@ Classification
    :template: class.rst
 
    classification.MapieClassifier
+
+Multi-Label Classification
+==========================
+
+.. autosummary::
+   :toctree: generated/
+   :template: class.rst
+
+   multi_label_classification.MapieMultiLabelClassifier
+
+Calibration
+===========
+
+.. autosummary::
+   :toctree: generated/
+   :template: class.rst
+
+   calibration.MapieCalibrator
 
 Metrics
 =======
@@ -37,6 +55,13 @@ Metrics
    metrics.classification_mean_width_score
    metrics.expected_calibration_error
    metrics.top_label_ece
+   metrics.regression_coverage_score_v2
+   metrics.classification_coverage_score_v2
+   metrics.regression_ssc
+   metrics.regression_ssc_score
+   metrics.classification_ssc
+   metrics.classification_ssc_score
+   metrics.hsic
 
 Conformity scores
 =================
