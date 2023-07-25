@@ -1087,6 +1087,11 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                     self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
             elif self.method in ["cumulated_score", "raps", "crf_aps", "ssaps"]:
                 if self.method == "ssaps":
+                    self.residuals_mean = np.mean(residuals)
+                    self.residuals_std = np.std(residuals)
+                    residuals = sig(
+                        (residuals - self.residuals_mean) / self.residuals_std
+                    )
                     (
                         self.conformity_scores_,
                         self.cutoff,
@@ -1328,6 +1333,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 thresholds = self.conformity_scores_.ravel()
             # sort labels by decreasing probability
             if self.method == "ssaps":
+                residuals = sig((residuals - self.residuals_mean) / self.residuals_std)
                 (
                     y_pred_proba_cumsum,
                     y_pred_index_last,
