@@ -697,6 +697,24 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
             )
         return y_pred_proba_sorted_cumsum
 
+    def _get_regularized_ssaps(self, y_pred_proba_sorted, residuals, alpha_dim=False):
+        if alpha_dim:
+            n_alphas = y_pred_proba_sorted.shape[-1]
+            y_pred_proba_sorted = y_pred_proba_sorted[:, :, 0]
+        j_values = np.arange(1, len(self.classes_) + 1)
+        penalized_residuals = 1 - np.power(residuals[:, np.newaxis], j_values)
+        penalized_residuals[:, 0] = 1.0
+        y_pred_proba_penalized_sorted = np.add(
+            0.005 * penalized_residuals, y_pred_proba_sorted
+        )
+        y_pred_proba_sorted_cumsum = np.cumsum(y_pred_proba_penalized_sorted, axis=1)
+        if alpha_dim:
+            y_pred_proba_sorted_cumsum = y_pred_proba_sorted_cumsum[:, :, np.newaxis]
+            y_pred_proba_sorted_cumsum = np.repeat(
+                y_pred_proba_sorted_cumsum, repeats=n_alphas, axis=2
+            )
+        return y_pred_proba_sorted_cumsum
+
     def _get_last_included_proba(
         self,
         y_pred_proba: NDArray,
@@ -740,7 +758,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
         y_pred_proba_sorted = np.take_along_axis(y_pred_proba, index_sorted, axis=1)
 
         if self.method == "ssaps":
-            y_pred_proba_sorted_cumsum = self._get_penalized_ssaps(
+            y_pred_proba_sorted_cumsum = self._get_regularized_ssaps(
                 y_pred_proba_sorted,
                 residuals,
                 alpha_dim=True,
@@ -1108,7 +1126,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 u = random_state.uniform(size=len(y_pred_proba)).reshape(-1, 1)
                 self.conformity_scores_ -= u * y_proba_true
                 if self.method == "crf_aps":
-                    self.conformity_scores_ /= np.expand_dims(residuals, axis=1)
+                    self.conformity_scores_ /= np.expand_dims(np.exp(residuals), axis=1)
             elif self.method == "top_k":
                 # Here we reorder the labels by decreasing probability
                 # and get the position of each label from decreasing
@@ -1289,7 +1307,7 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                             self.conformity_scores_, alpha_np
                         )
                         self.quantiles_ = np.repeat(
-                            np.expand_dims(residuals, axis=1),
+                            np.expand_dims(np.exp(residuals), axis=1),
                             len(quantiles_temp),
                             axis=1,
                         ).astype("float64")
