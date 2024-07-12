@@ -12,6 +12,7 @@ from sklearn.utils.validation import (check_is_fitted, check_random_state,
 from mapie._machine_precision import EPSILON
 from mapie._typing import ArrayLike, NDArray
 from mapie.conformity_scores import ConformityScore
+from mapie.wrap_arrays import wrap_ndarray_and_dataframe
 
 
 class AbsoluteConformityScore(ConformityScore):
@@ -377,6 +378,8 @@ class ResidualNormalisedScore(ConformityScore):
         (X, y, y_pred,
          self.residual_estimator_,
          random_state) = self._check_parameters(X, y, y_pred)
+        # Wrap numpy or pandas array transparently to handle indexing
+        X = wrap_ndarray_and_dataframe(X)
 
         full_indexes = np.argwhere(
             np.logical_not(np.isnan(y_pred))
