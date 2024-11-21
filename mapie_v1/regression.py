@@ -165,8 +165,7 @@ class SplitConformalRegressor:
         Returns
         -------
         Self
-            The SplitConformalRegressor instance with updated prediction
-            intervals.
+            The conformalized SplitConformalRegressor instance.
         """
         predict_params = {} if predict_params is None else predict_params
         self.mapie_regressor.fit(X_conf,
@@ -241,8 +240,9 @@ class CrossConformalRegressor:
     """
     A conformal regression model using cross-conformal prediction to generate
     prediction intervals with statistical guarantees. This method involves
-    cross-validation with conformity scoring across multiple folds to determine
-    prediction intervals around point predictions from a base regressor.
+    computing conformity scoring across multiple folds in a cross-validation
+    fashion to determine prediction intervals around point predictions from a
+    base regressor.
 
     Parameters
     ----------
@@ -265,17 +265,19 @@ class CrossConformalRegressor:
         provided.
 
     method : str, default="plus"
-        The method used for cross-conformal prediction. Options are:
+        The method used to compute prediction intervals. Options are:
         - "base": Based on the conformity scores from each fold.
-        - "plus": Based on the conformity scores from each fold plus
-          the testing prediction.
-        - "minmax": Based on the minimum and maximum conformity scores
-          from each fold.
+        - "plus": Based on the conformity scores from each fold and
+          the test set predictions.
+        - "minmax": Based on the conformity scores from each fold and
+          the test set predictions, using the minimum and maximum among
+          each fold models.
 
     cv : Union[int, BaseCrossValidator], default=5
-        The cross-validation splitting strategy. If an integer is passed, it is
-        the number of folds for `KFold` cross-validation. Alternatively, a
-        specific cross-validation splitter from scikit-learn can be provided.
+        The cross-validation strategy used to compute confomity scores. If an
+        integer is passed, it is the number of folds for `KFold`
+        cross-validation. Alternatively, a BaseCrossValidator from scikit-learn
+        can be provided. Valid options:
         TODO : reference here the valid options,
          once the list has been be created during the implementation
 
@@ -290,25 +292,6 @@ class CrossConformalRegressor:
         A seed or random state instance to ensure reproducibility in any random
         operations within the regressor.
 
-    Methods
-    -------
-    fit(X_train, y_train, fit_params=None) -> Self
-        Fits the base estimator to the training data using cross-validation.
-
-    conformalize(X_conf, y_conf, predict_params=None) -> Self
-        Calibrates the model using cross-validation and updates the prediction
-        intervals based on conformity errors observed across folds.
-
-    predict(X, aggregation_method=None) -> NDArray
-        Generates point predictions for the input data `X` using the specified
-        aggregation method across the cross-validation folds.
-
-    predict_set(X, minimize_interval_width=False, allow_infinite_bounds=False)
-    -> NDArray
-        Generates prediction intervals for the input data `X` based on the
-        conformity score and confidence level, adjusted to achieve the desired
-        coverage probability.
-
     Returns
     -------
     NDArray
@@ -317,18 +300,12 @@ class CrossConformalRegressor:
         - `(n_samples, 2, n_confidence_levels)` if `confidence_level`
            is a list of floats.
 
-    Notes
-    -----
-    Cross-conformal prediction provides enhanced robustness through the
-    aggregation of multiple conformal scores across cross-validation folds,
-    potentially yielding tighter intervals with reliable coverage guarantees.
-
     Examples
     --------
     >>> regressor = CrossConformalRegressor(
     ...     estimator=LinearRegression(), confidence_level=0.95, cv=10)
-    >>> regressor.fit(X_train, y_train)
-    >>> regressor.conformalize(X_conf, y_conf)
+    >>> regressor.fit(X, y)
+    >>> regressor.conformalize(X, y)
     >>> intervals = regressor.predict_set(X_test)
     """
 
@@ -347,20 +324,20 @@ class CrossConformalRegressor:
 
     def fit(
         self,
-        X_train: ArrayLike,
-        y_train: ArrayLike,
+        X: ArrayLike,
+        y: ArrayLike,
         fit_params: Optional[dict] = None,
     ) -> Self:
         """
-        Fits the base estimator to the training data using cross-validation.
+        Fits the base estimator using the entire dataset provided.
 
         Parameters
         ----------
-        X_train : ArrayLike
-            Training data features.
+        X : ArrayLike
+            Features
 
-        y_train : ArrayLike
-            Training data targets.
+        y : ArrayLike
+            Targets
 
         fit_params : Optional[dict], default=None
             Additional parameters to pass to the `fit` method
@@ -375,23 +352,29 @@ class CrossConformalRegressor:
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X: ArrayLike,
+        y: ArrayLike,
+        groups: Optional[ArrayLike] = None,
         predict_params: Optional[dict] = None,
     ) -> Self:
         """
-        Calibrates the fitted model using cross-validation conformal folds.
-        This step analyzes conformity scores across multiple cross-validation
-        folds and adjusts the prediction intervals based on conformity errors
-        and specified confidence levels.
+        Computes conformity scores in a cross conformal fashion, allowing to
+        predict intervals later on.
 
         Parameters
         ----------
-        X_conf : ArrayLike
+        X : ArrayLike
             Features for generating conformity scores across folds.
+            Must be the same X used in .fit
 
-        y_conf : ArrayLike
+        y : ArrayLike
             Target values for generating conformity scores across folds.
+            Must be the same y used in .fit
+
+        groups: Optional[ArrayLike] of shape (n_samples,)
+            Group labels for the samples used while splitting the dataset into
+            train/conformity set.
+            By default ``None``.
 
         predict_params : Optional[dict], default=None
             Additional parameters for generating predictions
@@ -400,8 +383,7 @@ class CrossConformalRegressor:
         Returns
         -------
         Self
-            The CrossConformalRegressor instance with calibrated prediction
-            intervals based on cross-validated conformity scores.
+            The conformalized SplitConformalRegressor instance.
         """
         pass
 
@@ -412,8 +394,8 @@ class CrossConformalRegressor:
         allow_infinite_bounds: bool = False,
     ) -> NDArray:
         """
-        Generates prediction intervals for the input data `X` based on the
-        calibrated model and cross-conformal prediction framework.
+        Generates prediction intervals for the input data `X` based on
+        conformity scores and confidence level(s).
 
         Parameters
         ----------
@@ -430,10 +412,10 @@ class CrossConformalRegressor:
         Returns
         -------
         NDArray
-            Prediction intervals with shape
-            - `(n_samples, 2)` if `confidence_level`is a single float,
-            - `(n_samples, 2, n_confidence_levels)` if multiple confidence
-               levels are specified.
+            An array containing the prediction intervals with shape
+            `(n_samples, 2)` if `confidence_level` is a single float, or
+            `(n_samples, 2, n_confidence_levels)` if `confidence_level` is a
+            list of floats.
         """
         pass
 
@@ -443,9 +425,10 @@ class CrossConformalRegressor:
         aggregation_method: Optional[str] = None,
     ) -> NDArray:
         """
-        Generates point predictions for the input data `X` using the
-        fitted model. Optionally aggregates predictions across cross-
-        validation folds models.
+        Generates point predictions for the input data `X`:
+        - using the model fitted on the entire dataset
+        - or if aggregation_method is provided, aggregating predictions from
+          the models fitted on each fold
 
         Parameters
         ----------
@@ -518,25 +501,6 @@ class JackknifeAfterBootstrapRegressor:
         A seed or random state instance to ensure reproducibility in any random
         operations within the regressor.
 
-    Methods
-    -------
-    fit(X_train, y_train, fit_params=None) -> Self
-        Fits the base estimator to the training data and initializes internal
-        parameters required for the jackknife-after-bootstrap process.
-
-    conformalize(X_conf, y_conf, predict_params=None) -> Self
-        Calibrates the model on provided data using the
-        jackknife-after-bootstrap approach, adjusting the prediction intervals
-        based on the observed conformity scores.
-
-    predict(X, aggregation_method="mean") -> NDArray
-        Generates point predictions for the input data `X` using the specified
-        aggregation method over bootstrap samples.
-
-    predict_set(X, allow_infinite_bounds=False) -> NDArray
-        Generates prediction intervals for the input data `X` based on the
-        calibrated jackknife-after-bootstrap predictions.
-
     Returns
     -------
     NDArray
@@ -568,8 +532,8 @@ class JackknifeAfterBootstrapRegressor:
 
     def fit(
         self,
-        X_train: ArrayLike,
-        y_train: ArrayLike,
+        X: ArrayLike,
+        y: ArrayLike,
         fit_params: Optional[dict] = None,
     ) -> Self:
         """
@@ -577,10 +541,10 @@ class JackknifeAfterBootstrapRegressor:
 
         Parameters
         ----------
-        X_train : ArrayLike
+        X : ArrayLike
             Training data features.
 
-        y_train : ArrayLike
+        y : ArrayLike
             Training data targets.
 
         fit_params : Optional[dict], default=None
