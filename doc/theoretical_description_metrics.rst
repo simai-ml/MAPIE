@@ -1,4 +1,4 @@
-.. title:: Theoretical Description Metrics : contents
+.. title:: How to measure conformal prediction performance?
 
 .. _theoretical_description_metrics:
 
