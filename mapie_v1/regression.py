@@ -274,12 +274,14 @@ class CrossConformalRegressor:
           each fold models.
 
     cv : Union[int, BaseCrossValidator], default=5
-        The cross-validation strategy used to compute confomity scores. If an
-        integer is passed, it is the number of folds for `KFold`
-        cross-validation. Alternatively, a BaseCrossValidator from scikit-learn
-        can be provided. Valid options:
-        TODO : reference here the valid options,
-         once the list has been be created during the implementation
+        The cross-validation strategy used to compute confomity scores.
+        Valid options:
+        - integer, to specify the number of folds
+        - any ``sklearn.model_selection.BaseCrossValidator`` suitable for
+          regression, or a custom cross-validator inheriting from it.
+          Main variants in the cross conformal setting are:
+          - ``sklearn.model_selection.KFold`` (vanilla cross conformal)
+          - ``sklearn.model_selection.LeaveOneOut`` (jackknife)
 
     n_jobs : Optional[int], default=None
         The number of jobs to run in parallel when applicable.
