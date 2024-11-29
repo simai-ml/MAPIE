@@ -4,6 +4,7 @@ Prediction sets (classification)
 .. toctree::
    :maxdepth: 2
 
+   choosing_the_right_algorithm_classification
    examples_classification/4-tutorials/plot_main-tutorial-classification
    examples_classification/4-tutorials/plot_crossconformal
    examples_classification/index
