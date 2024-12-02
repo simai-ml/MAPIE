@@ -10,8 +10,11 @@ from mapie._typing import ArrayLike, NDArray
 from mapie.conformity_scores import BaseRegressionScore
 from mapie.regression import MapieRegressor
 from mapie.utils import check_estimator_fit_predict
-from mapie_v1.conformity_scores.utils import \
-    check_and_select_split_conformity_score
+from mapie_v1.conformity_scores.utils import (
+    check_and_select_split_conformity_score,
+    process_confidence_level,
+    compute_alpha,
+)
 
 
 class SplitConformalRegressor:
@@ -101,10 +104,8 @@ class SplitConformalRegressor:
             random_state=random_state,
         )
 
-        if isinstance(confidence_level, float):
-            confidence_level = [confidence_level]
-
-        self.alpha = [1 - level for level in confidence_level]
+        self.confidence_level = process_confidence_level(confidence_level)
+        self.alpha = compute_alpha(self.confidence_level)
 
     def fit(
         self,
@@ -322,7 +323,19 @@ class CrossConformalRegressor:
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None
     ) -> None:
-        pass
+
+        self.mapie_regressor = MapieRegressor(
+            estimator=self.estimator,
+            method=method,
+            cv=cv,
+            n_jobs=n_jobs,
+            verbose=verbose,
+            conformity_score=self.conformity_score,
+            random_state=random_state,
+        )
+
+        self.confidence_level = process_confidence_level(confidence_level)
+        self.alpha = compute_alpha(self.confidence_level)
 
     def fit(
         self,
@@ -350,7 +363,10 @@ class CrossConformalRegressor:
         Self
             The fitted CrossConformalRegressor instance.
         """
-        pass
+        X, y, sample_weight, groups = self.init_fit(
+            X, y, fit_params=fit_params
+        )
+        self.mapie_regressor.fit_estimator(X, y, sample_weight, groups)
 
     def conformalize(
         self,
@@ -387,7 +403,12 @@ class CrossConformalRegressor:
         Self
             The conformalized SplitConformalRegressor instance.
         """
-        pass
+        self.mapie_regressor.conformalize(
+            X,
+            y,
+            groups=groups,
+            predict_params=predict_params
+        )
 
     def predict_set(
         self,
