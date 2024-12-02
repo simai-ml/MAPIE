@@ -33,8 +33,3 @@ def filter_params(
 
     model_params = inspect.signature(function).parameters
     return {k: v for k, v in params.items() if k in model_params}
-
-
-def calculate_coverage(y_true, pred_intervals):
-    return np.mean((y_true >= pred_intervals[:, 0]) &
-                   (y_true <= pred_intervals[:, 1]))

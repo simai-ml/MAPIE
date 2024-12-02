@@ -12,9 +12,8 @@ from mapie.regression import MapieRegressor
 from mapie.utils import check_estimator_fit_predict
 from mapie_v1.conformity_scores.utils import (
     check_and_select_split_conformity_score,
-    process_confidence_level,
-    compute_alpha,
 )
+from mapie_v1.utils import transform_confidence_level_to_alpha_list
 
 
 class SplitConformalRegressor:
@@ -86,26 +85,27 @@ class SplitConformalRegressor:
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
         check_estimator_fit_predict(estimator)
-        self.estimator = estimator
-        self.prefit = prefit
-        self.conformity_score = check_and_select_split_conformity_score(
+        self._estimator = estimator
+        self._prefit = prefit
+        self._conformity_score = check_and_select_split_conformity_score(
             conformity_score)
 
         # Note to developers: to implement this v1 class without touching the
         # v0 backend, we're for now using a hack. We always set cv="prefit",
         # and we fit the estimator if needed. See the .fit method below.
-        self.mapie_regressor = MapieRegressor(
-            estimator=self.estimator,
+        self._mapie_regressor = MapieRegressor(
+            estimator=self._estimator,
             method="base",
             cv="prefit",
             n_jobs=n_jobs,
             verbose=verbose,
-            conformity_score=self.conformity_score,
+            conformity_score=self._conformity_score,
             random_state=random_state,
         )
 
-        self.confidence_level = process_confidence_level(confidence_level)
-        self.alpha = compute_alpha(self.confidence_level)
+        self._alphas = transform_confidence_level_to_alpha_list(
+            confidence_level
+        )
 
     def fit(
         self,
@@ -133,11 +133,11 @@ class SplitConformalRegressor:
         Self
             The fitted SplitConformalRegressor instance.
         """
-        if not self.prefit:
-            cloned_estimator = clone(self.estimator)
+        if not self._prefit:
+            cloned_estimator = clone(self._estimator)
             fit_params = {} if fit_params is None else fit_params
             cloned_estimator.fit(X_train, y_train, **fit_params)
-            self.mapie_regressor.estimator = cloned_estimator
+            self._mapie_regressor.estimator = cloned_estimator
 
         return self
 
@@ -169,9 +169,9 @@ class SplitConformalRegressor:
             The conformalized SplitConformalRegressor instance.
         """
         predict_params = {} if predict_params is None else predict_params
-        self.mapie_regressor.fit(X_conf,
-                                 y_conf,
-                                 predict_params=predict_params)
+        self._mapie_regressor.fit(X_conf,
+                                  y_conf,
+                                  predict_params=predict_params)
 
         return self
 
@@ -204,14 +204,14 @@ class SplitConformalRegressor:
             `(n_samples, 2, n_confidence_levels)` if `confidence_level` is a
             list of floats.
         """
-        _, intervals = self.mapie_regressor.predict(
+        _, intervals = self._mapie_regressor.predict(
             X,
-            alpha=self.alpha,
+            alpha=self._alphas,
             optimize_beta=minimize_interval_width,
             allow_infinite_bounds=allow_infinite_bounds
         )
 
-        if len(self.alpha) == 1:
+        if len(self._alphas) == 1:
             intervals = intervals[:, :, 0]
 
         return intervals
@@ -233,7 +233,7 @@ class SplitConformalRegressor:
         NDArray
             Array of point predictions, with shape (n_samples,).
         """
-        predictions = self.mapie_regressor.predict(X, alpha=None)
+        predictions = self._mapie_regressor.predict(X, alpha=None)
         return predictions
 
 
@@ -323,7 +323,6 @@ class CrossConformalRegressor:
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None
     ) -> None:
-
         self.mapie_regressor = MapieRegressor(
             estimator=self.estimator,
             method=method,
@@ -334,8 +333,9 @@ class CrossConformalRegressor:
             random_state=random_state,
         )
 
-        self.confidence_level = process_confidence_level(confidence_level)
-        self.alpha = compute_alpha(self.confidence_level)
+        self._alphas = transform_confidence_level_to_alpha_list(
+            confidence_level
+        )
 
     def fit(
         self,
