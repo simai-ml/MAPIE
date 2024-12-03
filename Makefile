@@ -12,7 +12,7 @@ tests:
 integration-tests-v1:
 	@pip install mapie --no-dependencies --target=./mapie_v1/integration_tests/mapie_v0_package >/dev/null 2>&1
 	@mv ./mapie_v1/integration_tests/mapie_v0_package/mapie ./mapie_v1/integration_tests/mapie_v0_package/mapiev0
-	@- export PYTHONPATH="${PYTHONPATH}:./mapie_v1/integration_tests/mapie_v0_package"; pytest -vs mapie_v1/integration_tests/tests
+	@- export PYTHONPATH="${PYTHONPATH}:./mapie_v1/integration_tests/mapie_v0_package"; pytest -vs mapie_v1/integration_tests/tests  -k $(pattern)
 	@mv ./mapie_v1/integration_tests/mapie_v0_package/mapiev0 ./mapie_v1/integration_tests/mapie_v0_package/mapie
 
 coverage:
