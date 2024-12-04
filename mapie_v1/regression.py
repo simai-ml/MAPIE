@@ -10,10 +10,12 @@ from mapie._typing import ArrayLike, NDArray
 from mapie.conformity_scores import BaseRegressionScore
 from mapie.regression import MapieRegressor
 from mapie.utils import check_estimator_fit_predict
-from mapie_v1.conformity_scores.utils import (
-    check_and_select_split_conformity_score,
+from mapie_v1.conformity_scores._utils import (
+    check_and_select_regression_conformity_score,
 )
-from mapie_v1.utils import transform_confidence_level_to_alpha_list
+from mapie_v1._utils import transform_confidence_level_to_alpha_list, \
+    check_method_not_naive, check_cv_not_string, hash_X_y, \
+    check_if_X_y_different_from_fit
 
 
 class SplitConformalRegressor:
@@ -87,7 +89,7 @@ class SplitConformalRegressor:
         check_estimator_fit_predict(estimator)
         self._estimator = estimator
         self._prefit = prefit
-        self._conformity_score = check_and_select_split_conformity_score(
+        self._conformity_score = check_and_select_regression_conformity_score(
             conformity_score)
 
         # Note to developers: to implement this v1 class without touching the
@@ -323,19 +325,26 @@ class CrossConformalRegressor:
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None
     ) -> None:
-        self.mapie_regressor = MapieRegressor(
-            estimator=self.estimator,
+        check_method_not_naive(method)
+        check_cv_not_string(cv)
+
+        self._mapie_regressor = MapieRegressor(
+            estimator=estimator,
             method=method,
             cv=cv,
             n_jobs=n_jobs,
             verbose=verbose,
-            conformity_score=self.conformity_score,
+            conformity_score=check_and_select_regression_conformity_score(
+                conformity_score
+            ),
             random_state=random_state,
         )
 
         self._alphas = transform_confidence_level_to_alpha_list(
             confidence_level
         )
+
+        self.hashed_X_y: int = 0
 
     def fit(
         self,
@@ -363,10 +372,14 @@ class CrossConformalRegressor:
         Self
             The fitted CrossConformalRegressor instance.
         """
-        X, y, sample_weight, groups = self.init_fit(
+        self.hashed_X_y = hash_X_y(X, y)
+
+        X, y, sample_weight, groups = self._mapie_regressor.init_fit(
             X, y, fit_params=fit_params
         )
-        self.mapie_regressor.fit_estimator(X, y, sample_weight, groups)
+        self._mapie_regressor.fit_estimator(X, y, sample_weight, groups)
+
+        return self
 
     def conformalize(
         self,
@@ -403,7 +416,9 @@ class CrossConformalRegressor:
         Self
             The conformalized SplitConformalRegressor instance.
         """
-        self.mapie_regressor.conformalize(
+        check_if_X_y_different_from_fit(X, y, self.hashed_X_y)
+
+        self._mapie_regressor.conformalize(
             X,
             y,
             groups=groups,
