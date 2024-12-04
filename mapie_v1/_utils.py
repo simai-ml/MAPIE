@@ -2,7 +2,7 @@ import warnings
 from typing import Union, List
 
 from numpy import array
-from numpy.typing import ArrayLike
+from mapie._typing import ArrayLike, NDArray
 from sklearn.model_selection import BaseCrossValidator
 
 
@@ -47,3 +47,12 @@ def check_if_X_y_different_from_fit(
         warnings.warn(
             "You have to use the same X and y in .fit and .conformalize"
         )
+
+
+def make_intervals_single_if_single_alpha(
+    intervals: NDArray,
+    alphas: List[float]
+) -> NDArray:
+    if len(alphas) == 1:
+        return intervals[:, :, 0]
+    return intervals

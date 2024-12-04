@@ -1,4 +1,5 @@
-from typing import Optional, Union, List
+import copy
+from typing import Optional, Union, List, cast
 from typing_extensions import Self
 
 import numpy as np
@@ -15,7 +16,7 @@ from mapie_v1.conformity_scores._utils import (
 )
 from mapie_v1._utils import transform_confidence_level_to_alpha_list, \
     check_method_not_naive, check_cv_not_string, hash_X_y, \
-    check_if_X_y_different_from_fit
+    check_if_X_y_different_from_fit, make_intervals_single_if_single_alpha
 
 
 class SplitConformalRegressor:
@@ -213,10 +214,10 @@ class SplitConformalRegressor:
             allow_infinite_bounds=allow_infinite_bounds
         )
 
-        if len(self._alphas) == 1:
-            intervals = intervals[:, :, 0]
-
-        return intervals
+        return make_intervals_single_if_single_alpha(
+            intervals,
+            self._alphas
+        )
 
     def predict(
         self,
@@ -344,7 +345,8 @@ class CrossConformalRegressor:
             confidence_level
         )
 
-        self.hashed_X_y: int = 0
+        self._hashed_X_y: int = 0
+        self._sample_weight: Optional[NDArray] = None
 
     def fit(
         self,
@@ -372,13 +374,21 @@ class CrossConformalRegressor:
         Self
             The fitted CrossConformalRegressor instance.
         """
-        self.hashed_X_y = hash_X_y(X, y)
+        self._hashed_X_y = hash_X_y(X, y)
 
-        X, y, sample_weight, groups = self._mapie_regressor.init_fit(
-            X, y, fit_params=fit_params
+        if fit_params:
+            fit_params_ = copy.deepcopy(fit_params)
+            self._sample_weight = fit_params_.pop("sample_weight", None)
+        else:
+            fit_params_ = {}
+
+        X, y, self._sample_weight, groups = self._mapie_regressor.init_fit(
+            X, y, self._sample_weight, fit_params=fit_params_
         )
-        self._mapie_regressor.fit_estimator(X, y, sample_weight, groups)
 
+        self._mapie_regressor.fit_estimator(
+            X, y, self._sample_weight
+        )
         return self
 
     def conformalize(
@@ -416,11 +426,15 @@ class CrossConformalRegressor:
         Self
             The conformalized SplitConformalRegressor instance.
         """
-        check_if_X_y_different_from_fit(X, y, self.hashed_X_y)
+        check_if_X_y_different_from_fit(X, y, self._hashed_X_y)
+        groups = cast(Optional[NDArray], groups)
+        if not predict_params:
+            predict_params = {}
 
         self._mapie_regressor.conformalize(
             X,
             y,
+            sample_weight=self._sample_weight,
             groups=groups,
             predict_params=predict_params
         )
@@ -455,7 +469,19 @@ class CrossConformalRegressor:
             `(n_samples, 2, n_confidence_levels)` if `confidence_level` is a
             list of floats.
         """
-        pass
+        # TODO: factorize this function once the v0 backend is updated with
+        #  correct param names
+        _, intervals = self._mapie_regressor.predict(
+            X,
+            alpha=self._alphas,
+            optimize_beta=minimize_interval_width,
+            allow_infinite_bounds=allow_infinite_bounds
+        )
+
+        return make_intervals_single_if_single_alpha(
+            intervals,
+            self._alphas
+        )
 
     def predict(
         self,
@@ -485,7 +511,14 @@ class CrossConformalRegressor:
         NDArray
             Array of point predictions, with shape `(n_samples,)`.
         """
-        pass
+        if not aggregation_method:
+            ensemble = False
+        else:
+            ensemble = True
+            self._mapie_regressor._check_agg_function(aggregation_method)
+            self._mapie_regressor.agg_function = aggregation_method
+
+        return self._mapie_regressor.predict(X, alpha=None, ensemble=ensemble)
 
 
 class JackknifeAfterBootstrapRegressor:
