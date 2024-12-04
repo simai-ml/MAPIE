@@ -138,6 +138,7 @@ params_test_cases_cross = [
             "ensemble": True,
             "method": "base",
             "sample_weight": sample_weight,
+            "random_state": RANDOM_STATE,
         },
         "v1": {
             "confidence_level": 0.8,
@@ -146,24 +147,27 @@ params_test_cases_cross = [
             "aggregation_method": "median",
             "method": "base",
             "fit_params": {"sample_weight": sample_weight},
+            "random_state": RANDOM_STATE,
         }
     },
     {
         "v0": {
             "estimator": positive_predictor,
-            "alpha": 0.5,
+            "alpha": [0.5, 0.5],
             "conformity_score": GammaConformityScore(),
             "cv": LeaveOneOut(),
             "method": "plus",
             "optimize_beta": True,
+            "random_state": RANDOM_STATE,
         },
         "v1": {
             "estimator": positive_predictor,
-            "confidence_level": 0.5,
+            "confidence_level": [0.5, 0.5],
             "conformity_score": "gamma",
             "cv": LeaveOneOut(),
             "method": "plus",
             "minimize_interval_width": True,
+            "random_state": RANDOM_STATE,
         }
     },
     {
@@ -173,12 +177,14 @@ params_test_cases_cross = [
             "groups": groups,
             "method": "minmax",
             "allow_infinite_bounds": True,
+            "random_state": RANDOM_STATE,
         },
         "v1": {
             "cv": GroupKFold(),
             "groups": groups,
             "method": "minmax",
             "allow_infinite_bounds": True,
+            "random_state": RANDOM_STATE,
         }
     },
 ]
@@ -209,12 +215,14 @@ def test_intervals_and_predictions_exact_equality_cross(params_cross):
     v1_predict_set_params = filter_params(v1.predict_set, v1_params)
 
     v0_preds, v0_pred_intervals = v0.predict(X_cross, **v0_predict_params)
-    v0_pred_intervals = v0_pred_intervals[:, :, 0]
+
     v1_pred_intervals = v1.predict_set(X_cross, **v1_predict_set_params)
+    if v1_pred_intervals.ndim == 2:
+        v1_pred_intervals = np.expand_dims(v1_pred_intervals, axis=2)
     v1_preds = v1.predict(X_cross, **v1_predict_params)
 
-    assert np.equal(v0_preds, v1_preds)
-    assert np.equal(v0_pred_intervals, v1_pred_intervals)
+    np.testing.assert_array_equal(v0_preds, v1_preds)
+    np.testing.assert_array_equal(v0_pred_intervals, v1_pred_intervals)
 
 
 def initialize_models(
