@@ -1,19 +1,24 @@
 .PHONY: tests doc build
 
+mapie_v0_folder_name = mapie_v0_package
+
 lint:
 	flake8 . --max-line-length=88 --exclude=doc
 
 type-check:
 	mypy mapie
 
+v1-type-check:
+	mypy mapie_v1 --exclude $(mapie_v0_folder_name)
+
 tests:
 	pytest -vs --doctest-modules mapie
 
 integration-tests-v1:
-	@pip install mapie --no-dependencies --target=./mapie_v1/integration_tests/mapie_v0_package >/dev/null 2>&1
-	@mv ./mapie_v1/integration_tests/mapie_v0_package/mapie ./mapie_v1/integration_tests/mapie_v0_package/mapiev0
-	@- export PYTHONPATH="${PYTHONPATH}:./mapie_v1/integration_tests/mapie_v0_package"; pytest -vs mapie_v1/integration_tests/tests  -k $(pattern)
-	@mv ./mapie_v1/integration_tests/mapie_v0_package/mapiev0 ./mapie_v1/integration_tests/mapie_v0_package/mapie
+	@pip install mapie --no-dependencies --target=./mapie_v1/integration_tests/$(mapie_v0_folder_name) >/dev/null 2>&1
+	@mv ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapie ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapiev0
+	@- export PYTHONPATH="${PYTHONPATH}:./mapie_v1/integration_tests/$(mapie_v0_folder_name)"; pytest -vs mapie_v1/integration_tests/tests  -k $(pattern)
+	@mv ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapiev0 ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapie
 
 coverage:
 	pytest -vs \

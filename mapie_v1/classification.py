@@ -31,7 +31,7 @@ class SplitConformalClassifier:
         y_train: ArrayLike,
         fit_params: Optional[dict] = None,
     ) -> Self:
-        pass
+        return self
 
     def conformalize(
         self,
@@ -39,7 +39,7 @@ class SplitConformalClassifier:
         y_conf: ArrayLike,
         predict_params: Optional[dict] = None,
     ) -> Self:
-        pass
+        return self
 
     def predict(self, X: ArrayLike) -> NDArray:
         """
@@ -49,7 +49,7 @@ class SplitConformalClassifier:
         scikit-learn classifiers
         Shape (n_samples,)
         """
-        pass
+        return np.ndarray(0)
 
     def predict_sets(
         self,
@@ -66,7 +66,7 @@ class SplitConformalClassifier:
         Shape (n_samples, n_classes, confidence_level) if confidence_level
         is a list of floats
         """
-        pass
+        return np.ndarray(0)
 
 
 class CrossConformalClassifier:
@@ -89,7 +89,7 @@ class CrossConformalClassifier:
         y_train: ArrayLike,
         fit_params: Optional[dict] = None,
     ) -> Self:
-        pass
+        return self
 
     def conformalize(
         self,
@@ -97,10 +97,10 @@ class CrossConformalClassifier:
         y_conf: ArrayLike,
         predict_params: Optional[dict] = None
     ) -> Self:
-        pass
+        return self
 
     def predict(self,
-                X: ArrayLike):
+                X: ArrayLike) -> NDArray:
         """
         Return
         -----
@@ -108,7 +108,7 @@ class CrossConformalClassifier:
         scikit-learn classifiers
         Shape (n_samples,)
         """
-        pass
+        return np.ndarray(0)
 
     def predict_sets(
         self,
@@ -125,4 +125,4 @@ class CrossConformalClassifier:
         Shape (n_samples, n_classes, confidence_level) if confidence_level
         is a list of floats
         """
-        pass
+        return np.ndarray(0)

@@ -1,5 +1,5 @@
 import warnings
-from typing import Union, List
+from typing import Union, List, Tuple, cast
 
 from numpy import array
 from mapie._typing import ArrayLike, NDArray
@@ -56,3 +56,9 @@ def make_intervals_single_if_single_alpha(
     if len(alphas) == 1:
         return intervals[:, :, 0]
     return intervals
+
+
+def cast_point_predictions_to_ndarray(
+    point_predictions: Union[NDArray, Tuple[NDArray, NDArray]]
+) -> NDArray:
+    return cast(NDArray, point_predictions)
