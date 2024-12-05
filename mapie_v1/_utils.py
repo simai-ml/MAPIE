@@ -61,4 +61,5 @@ def make_intervals_single_if_single_alpha(
 def cast_point_predictions_to_ndarray(
     point_predictions: Union[NDArray, Tuple[NDArray, NDArray]]
 ) -> NDArray:
+    # This will be useless when we split .predict and .predict_set in back-end
     return cast(NDArray, point_predictions)
