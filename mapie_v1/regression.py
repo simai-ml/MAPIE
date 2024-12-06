@@ -22,9 +22,10 @@ from mapie_v1._utils import transform_confidence_level_to_alpha_list, \
 class SplitConformalRegressor:
     """
     A conformal regression model using split conformal prediction to generate
-    prediction intervals with statistical guarantees. This method involves
-    using a hold-out conformity set to determine prediction intervals around
-    point predictions from a base regressor.
+    prediction intervals.
+
+    This method involves using a hold-out conformity set to determine
+    prediction intervals around point predictions from a base regressor.
 
     Parameters
     ----------
@@ -243,10 +244,11 @@ class SplitConformalRegressor:
 class CrossConformalRegressor:
     """
     A conformal regression model using cross-conformal prediction to generate
-    prediction intervals with statistical guarantees. This method involves
-    computing conformity scoring across multiple folds in a cross-validation
-    fashion to determine prediction intervals around point predictions from a
-    base regressor.
+    prediction intervals.
+
+    This method involves computing conformity scoring across multiple folds in
+    a cross-validation fashion to determine prediction intervals around point
+    predictions from a base regressor.
 
     Parameters
     ----------
@@ -272,20 +274,20 @@ class CrossConformalRegressor:
         The method used to compute prediction intervals. Options are:
         - "base": Based on the conformity scores from each fold.
         - "plus": Based on the conformity scores from each fold and
-          the test set predictions.
+        the test set predictions.
         - "minmax": Based on the conformity scores from each fold and
-          the test set predictions, using the minimum and maximum among
-          each fold models.
+        the test set predictions, using the minimum and maximum among
+        each fold models.
 
     cv : Union[int, BaseCrossValidator], default=5
         The cross-validation strategy used to compute confomity scores.
         Valid options:
         - integer, to specify the number of folds
         - any ``sklearn.model_selection.BaseCrossValidator`` suitable for
-          regression, or a custom cross-validator inheriting from it.
-          Main variants in the cross conformal setting are:
-          - ``sklearn.model_selection.KFold`` (vanilla cross conformal)
-          - ``sklearn.model_selection.LeaveOneOut`` (jackknife)
+        regression, or a custom cross-validator inheriting from it.
+        Main variants in the cross conformal setting are:
+        * ``sklearn.model_selection.KFold`` (vanilla cross conformal)
+        * ``sklearn.model_selection.LeaveOneOut`` (jackknife)
 
     n_jobs : Optional[int], default=None
         The number of jobs to run in parallel when applicable.
@@ -304,7 +306,7 @@ class CrossConformalRegressor:
         An array containing the prediction intervals with shape:
         - `(n_samples, 2)` if `confidence_level` is a single float
         - `(n_samples, 2, n_confidence_levels)` if `confidence_level`
-           is a list of floats.
+        is a list of floats.
 
     Examples
     --------
@@ -492,7 +494,7 @@ class CrossConformalRegressor:
         Generates point predictions for the input data `X`:
         - using the model fitted on the entire dataset
         - or if aggregation_method is provided, aggregating predictions from
-          the models fitted on each fold
+        the models fitted on each fold
 
         Parameters
         ----------
@@ -524,9 +526,11 @@ class CrossConformalRegressor:
 class JackknifeAfterBootstrapRegressor:
     """
     A conformal regression model using the jackknife-after-bootstrap approach
-    to generate prediction intervals with statistical guarantees. This method
-    combines bootstrap sampling with the jackknife technique to produce robust
-    prediction intervals around point predictions from a base regressor.
+    to generate prediction intervals.
+
+    This method combines bootstrap sampling with the jackknife technique
+    to produce robust prediction intervals around point predictions from
+    a base regressor.
 
     Parameters
     ----------
@@ -553,9 +557,9 @@ class JackknifeAfterBootstrapRegressor:
         The method used for jackknife-after-bootstrap prediction. Options are:
         - "base": Based on the conformity scores from each bootstrap sample.
         - "plus": Based on the conformity scores from each bootstrap sample and
-           the testing prediction.
+        the testing prediction.
         - "minmax": Based on the minimum and maximum conformity scores from
-          each bootstrap sample.
+        each bootstrap sample.
 
     n_bootstraps : int, default=100
         The number of bootstrap resamples to generate for the
@@ -718,8 +722,9 @@ class JackknifeAfterBootstrapRegressor:
 class ConformalizedQuantileRegressor:
     """
     A conformal quantile regression model that generates prediction intervals
-    with statistical guarantees using quantile regression as the base
-    estimator. This approach provides prediction intervals by leveraging
+    using quantile regression as the base estimator.
+
+    This approach provides prediction intervals by leveraging
     quantile predictions and applying conformal adjustments to ensure coverage.
 
     Parameters
@@ -790,10 +795,6 @@ class ConformalizedQuantileRegressor:
         estimator: RegressorMixin = QuantileRegressor(),
         confidence_level: Union[float, List[float]] = 0.9,
         conformity_score: Union[str, BaseRegressionScore] = "absolute",
-        # n_jobs: Optional[int] = None
-        # Not yet available in MapieQuantileRegressor
-        # verbose: int = 0,
-        # Idem
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
         pass
