@@ -7,6 +7,7 @@ from sklearn.linear_model import LinearRegression, QuantileRegressor
 from sklearn.base import RegressorMixin, clone
 from sklearn.model_selection import BaseCrossValidator
 
+from mapie.subsample import Subsample
 from mapie._typing import ArrayLike, NDArray
 from mapie.conformity_scores import BaseRegressionScore
 from mapie.regression import MapieRegressor
@@ -604,12 +605,15 @@ class JackknifeAfterBootstrapRegressor:
         confidence_level: Union[float, List[float]] = 0.9,
         conformity_score: Union[str, BaseRegressionScore] = "absolute",
         method: str = "plus",
-        n_bootstraps: int = 100,
+        resampling: Union[int, Subsample] = 10,
+        aggregation_method: str = "mean",
         n_jobs: Optional[int] = None,
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
-        pass
+
+        # Placeholder for the MapieRegressor instance to pass mypy checks
+        self._mapie_regressor = MapieRegressor(estimator=estimator,)
 
     def fit(
         self,
@@ -701,8 +705,6 @@ class JackknifeAfterBootstrapRegressor:
     def predict(
         self,
         X: ArrayLike,
-        # ensemble: bool = False, -> removed, see aggregation_method
-        aggregation_method: str = "mean",  # 'mean', 'median'
     ) -> NDArray:
         """
         Generates point predictions for the input data using the fitted model,

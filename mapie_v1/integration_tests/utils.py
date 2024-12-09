@@ -1,17 +1,14 @@
 from typing import Callable, Dict, Any, Optional
 import inspect
-import numpy as np
-
 from sklearn.model_selection import ShuffleSplit
-from typing import Tuple
 
 
 def train_test_split_shuffle(
-    X: np.ndarray,
-    y: np.ndarray,
+    X,
+    y,
     test_size: float = 0.2,
     random_state: int = 42
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+):
 
     splitter = ShuffleSplit(n_splits=1,
                             test_size=test_size,
