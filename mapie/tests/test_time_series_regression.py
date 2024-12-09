@@ -133,7 +133,7 @@ def test_invalid_agg_function(agg_function: Any) -> None:
         mapie_reg.fit(X_toy, y_toy)
 
     mapie_reg = MapieTimeSeriesRegressor(agg_function=None)
-    with pytest.raises(ValueError, match=r".*If ensemble is True*"):
+    with pytest.raises(ValueError, match=r".*The aggregation function*"):
         mapie_reg.fit(X_toy, y_toy)
         mapie_reg.predict(X_toy, ensemble=True)
 
@@ -399,7 +399,7 @@ def test_MapieTimeSeriesRegressor_beta_optimize_error() -> None:
         cv=-1, conformity_score=AbsoluteConformityScore(sym=True)
     ).fit(X_toy, y_toy)
     with pytest.raises(
-        ValueError, match=r"Beta optimisation cannot be used*"
+        ValueError, match=r"Interval width minimization cannot be used*"
     ):
         mapie_ts_reg.predict(X_toy, alpha=0.4, optimize_beta=True)
 

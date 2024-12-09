@@ -242,8 +242,8 @@ class MondrianCP(BaseEstimator):
         """
         if not self.mapie_estimator.cv == "prefit":
             raise ValueError(
-                "Mondrian can only be used if the underlying Mapie" +
-                "estimator uses cv='prefit'."
+                "Mondrian can only be used if the underlying" +
+                "estimator is used in prefit mode."
             )
 
     def _check_partition_fit(self, X: NDArray, partition: NDArray):
@@ -348,7 +348,7 @@ class MondrianCP(BaseEstimator):
         """
         if isinstance(self.mapie_estimator, self.not_allowed_estimators):
             raise ValueError(
-                "The estimator must be a MapieClassifier or MapieRegressor"
+                "The estimator must be a classifier or regressor"
             )
 
     def _check_confomity_score(self):
@@ -371,7 +371,7 @@ class MondrianCP(BaseEstimator):
                 if self.mapie_estimator.method not in \
                    self.allowed_classification_ncs_str:
                     raise ValueError(
-                        "The conformity score for the MapieClassifier must " +
+                        "The conformity score for the classifier must " +
                         f"be one of {self.allowed_classification_ncs_str}"
                     )
 
@@ -379,7 +379,7 @@ class MondrianCP(BaseEstimator):
                 if type(self.mapie_estimator.conformity_score) not in \
                    self.allowed_classification_ncs_class:
                     raise ValueError(
-                        "The conformity score for the MapieClassifier must" +
+                        "The conformity score for the classifier must" +
                         f" be one of {self.allowed_classification_ncs_class}"
                     )
         else:
@@ -387,7 +387,7 @@ class MondrianCP(BaseEstimator):
                 if not isinstance(self.mapie_estimator.conformity_score,
                    self.allowed_regression_ncs):
                     raise ValueError(
-                        "The conformity score for the MapieRegressor must " +
+                        "The conformity score for the regressor must " +
                         f"be one of {self.allowed_regression_ncs}"
                     )
 

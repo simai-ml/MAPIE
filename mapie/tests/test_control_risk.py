@@ -173,13 +173,13 @@ def test_warning_valid_index_empty() -> None:
 
 def test_invalid_alpha_hb() -> None:
     """Test error message when invalid alpha"""
-    with pytest.raises(ValueError, match=r".*Invalid alpha"):
+    with pytest.raises(ValueError, match=r".*Invalid confidence_level"):
         compute_hoeffdding_bentkus_p_value(r_hat, n, wrong_alpha)
 
 
 def test_invalid_shape_alpha_hb() -> None:
     """Test error message when invalid alpha shape"""
-    with pytest.raises(ValueError, match=r".*Invalid alpha"):
+    with pytest.raises(ValueError, match=r".*Invalid confidence_level"):
         compute_hoeffdding_bentkus_p_value(r_hat, n, wrong_alpha_shape)
 
 

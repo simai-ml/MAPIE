@@ -112,7 +112,9 @@ def test_check_wrong_classification_method(
     Test that the function check_classification_conformity_score raises
     a ValueError when using a wrong method.
     """
-    with pytest.raises(ValueError, match="Invalid method.*"):
+    with pytest.raises(
+        ValueError, match="(Invalid method.)|(Invalid conformity score.)*"
+    ):
         check_classification_conformity_score(method=method)
 
 

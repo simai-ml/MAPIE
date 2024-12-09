@@ -291,7 +291,7 @@ class MapieMultiLabelClassifier(BaseEstimator, ClassifierMixin):
             if self.valid_index[i] == []:
                 warnings.warn(
                     "Warning: LTT method has returned an empty sequence"
-                    + " for alpha=" + str(alpha[i])
+                    + " for confidence level=" + str(1-alpha[i])
                 )
 
     def _check_estimator(
@@ -362,8 +362,8 @@ class MapieMultiLabelClassifier(BaseEstimator, ClassifierMixin):
             estimator.fit(X_train, y_train)
             warnings.warn(
                 "WARNING: To avoid overffiting, X has been splitted"
-                + "into X_train and X_calib. The calibraiton will only"
-                + "be done on X_calib"
+                + "into X_train and X_conf. The conformalization will only"
+                + "be done on X_conf"
             )
             return estimator, X_calib, y_calib
 

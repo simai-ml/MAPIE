@@ -210,8 +210,8 @@ def check_cv(
     else:
         raise ValueError(
             "Invalid cv argument. "
-            "Allowed values are None, -1, int >= 2, 'prefit', 'split', "
-            "or a BaseCrossValidator object (Kfold, LeaveOneOut)."
+            "Allowed values are -1, int >= 2, "
+            "or a suitable BaseCrossValidator object"
         )
 
 
@@ -317,19 +317,21 @@ def check_alpha(
         alpha_np = np.array(alpha)
     else:
         raise ValueError(
-            "Invalid alpha. Allowed values are float or Iterable."
+            "Invalid confidence_level. Allowed values are float or Iterable."
         )
     if len(alpha_np.shape) != 1:
         raise ValueError(
-            "Invalid alpha."
+            "Invalid confidence_level."
             "Please provide a one-dimensional list of values."
         )
     if alpha_np.dtype.type not in [np.float64, np.float32]:
         raise ValueError(
-            "Invalid alpha. Allowed values are Iterable of floats."
+            "Invalid confidence_level. Allowed values are Iterable of floats."
         )
     if np.any(np.logical_or(alpha_np < 0, alpha_np > 1)):
-        raise ValueError("Invalid alpha. Allowed values are between 0 and 1.")
+        raise ValueError(
+            "Invalid confidence_level. Allowed values are between 0 and 1."
+        )
     return alpha_np
 
 
@@ -469,7 +471,8 @@ def check_alpha_and_n_samples(
     ...     print(exception)
     ...
     Number of samples of the score is too low,
-    1/alpha (or 1/(1 - alpha)) must be lower than the number of samples.
+    1/confidence_level and 1/(1 - confidence_level) must be
+    lower than the number of samples.
     """
     if isinstance(alphas, float):
         alphas = np.array([alphas])
@@ -477,8 +480,8 @@ def check_alpha_and_n_samples(
         if n < np.max([1/alpha, 1/(1-alpha)]):
             raise ValueError(
                 "Number of samples of the score is too low,\n"
-                "1/alpha (or 1/(1 - alpha)) must be lower "
-                "than the number of samples."
+                "1/confidence_level and 1/(1 - confidence_level) must be\n"
+                "lower than the number of samples."
             )
 
 
@@ -687,8 +690,8 @@ def check_alpha_and_last_axis(vector: NDArray, alpha_np: NDArray):
     """
     if len(alpha_np) != vector.shape[2]:
         raise ValueError(
-            "In case of the vector has 3 dimensions, the dimension\n"
-            + "of his last axis must be equal to the number of alphas"
+            "In case of the vector has 3 dimensions, the dimension of its"
+            + "last axis must be equal to the number of confidence levels"
         )
     else:
         return vector, alpha_np
@@ -1133,7 +1136,7 @@ def check_array_shape_classification(
         if len(y_pred_set.shape) != 2:
             raise ValueError(
                 "y_pred_set should be a 3D array of shape \
-                (n_obs, n_classes, n_alpha)"
+                (n_obs, n_classes, n_confidence_levels)"
             )
         else:
             y_pred_set = np.expand_dims(y_pred_set, axis=2)
@@ -1169,7 +1172,8 @@ def check_array_shape_regression(
     if len(y_intervals.shape) != 3:
         if len(y_intervals.shape) != 2:
             raise ValueError(
-                "y_intervals should be a 3D array of shape (n_obs, 2, n_alpha)"
+                "y_intervals should be a 3D array of shape"
+                " (n_obs, 2, n_confidence_levels)"
             )
         else:
             y_intervals = np.expand_dims(y_intervals, axis=2)

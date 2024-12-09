@@ -221,7 +221,7 @@ def check_classification_conformity_score(
             return METHOD_SCORE_MAP[method]()
         else:
             raise ValueError(
-                "Invalid method. "
+                "Invalid conformity score. "
                 f"Allowed values are {list(METHOD_SCORE_MAP.keys())}."
             )
     else:

@@ -317,8 +317,7 @@ class MapieRegressor(BaseEstimator, RegressorMixin):
             type(self.cv).__name__ in self.cv_need_agg_function_
         ):
             raise ValueError(
-                "You need to specify an aggregation function when "
-                f"cv's type is in {self.cv_need_agg_function_}."
+                "You need to specify an aggregation function."
             )
         elif agg_function is not None:
             return agg_function
@@ -385,8 +384,8 @@ class MapieRegressor(BaseEstimator, RegressorMixin):
         """
         if ensemble and (self.agg_function is None):
             raise ValueError(
-                "If ensemble is True, the aggregation function has to be "
-                f"in '{self.ensemble_agg_functions_}'."
+                "The aggregation function has to be in "
+                f"{self.ensemble_agg_functions_}."
             )
 
     def _check_fit_parameters(
@@ -442,7 +441,7 @@ class MapieRegressor(BaseEstimator, RegressorMixin):
            self.cv not in ["split", "prefit"]:
             raise ValueError(
                 "The ResidualNormalisedScore can be used only with "
-                "``cv='split'`` and ``cv='prefit'``"
+                "``SplitConformalRegressor``"
             )
 
         X, y = indexable(X, y)

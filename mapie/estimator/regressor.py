@@ -286,9 +286,7 @@ class EnsembleRegressor:
         """
         if self.method in self.no_agg_methods_ or self.use_split_method_:
             raise ValueError(
-                "There should not be aggregation of predictions "
-                f"if cv is in '{self.no_agg_cv_}', if cv >=2 "
-                f"or if method is in '{self.no_agg_methods_}'."
+                "There should not be aggregation of predictions."
             )
         elif self.agg_function == "median":
             return phi2D(A=x, B=k, fun=lambda x: np.nanmedian(x, axis=1))
@@ -301,7 +299,9 @@ class EnsembleRegressor:
             K = np.nan_to_num(k, nan=0.0)
             return np.matmul(x, (K / (K.sum(axis=1, keepdims=True))).T)
         else:
-            raise ValueError("The value of self.agg_function is not correct")
+            raise ValueError(
+                "The value of the aggregation function is not correct"
+            )
 
     def _pred_multi(self, X: ArrayLike, **predict_params) -> NDArray:
         """

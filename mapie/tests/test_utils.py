@@ -131,7 +131,7 @@ def test_fit_estimator_sample_weight() -> None:
 @pytest.mark.parametrize("alpha", [-1, 0, 1, 2, 2.5, "a", ["a", "b"]])
 def test_invalid_alpha(alpha: Any) -> None:
     """Test that invalid alphas raise errors."""
-    with pytest.raises(ValueError, match=r".*Invalid alpha.*"):
+    with pytest.raises(ValueError, match=r".*Invalid confidence_level.*"):
         check_alpha(alpha=alpha)
 
 

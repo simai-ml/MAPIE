@@ -232,7 +232,10 @@ def test_invalid_agg_function(agg_function: Any) -> None:
         mapie_reg.fit(X_toy, y_toy)
 
     mapie_reg = MapieRegressor(agg_function=None)
-    with pytest.raises(ValueError, match=r".*If ensemble is True*"):
+    with pytest.raises(
+        ValueError,
+        match=r".*aggregation function has to be in ['median', 'mean']*"
+    ):
         mapie_reg.fit(X_toy, y_toy)
         mapie_reg.predict(X_toy, ensemble=True)
 
@@ -739,7 +742,7 @@ def test_aggregate_with_mask_with_prefit() -> None:
     mapie_reg = mapie_reg.fit(X, y)
     with pytest.raises(
         ValueError,
-        match=r".*There should not be aggregation of predictions if cv is*",
+        match=r".*There should not be aggregation of predictions.*",
     ):
         mapie_reg.estimator_._aggregate_with_mask(k, k)
 
@@ -758,7 +761,7 @@ def test_aggregate_with_mask_with_invalid_agg_function() -> None:
     ens_reg.use_split_method_ = False
     with pytest.raises(
         ValueError,
-        match=r".*The value of self.agg_function is not correct*",
+        match=r".*The value of the aggregation function is not correct*",
     ):
         ens_reg._aggregate_with_mask(k, k)
 

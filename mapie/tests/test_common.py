@@ -159,7 +159,9 @@ def test_valid_prefit_estimator(
 def test_invalid_method(MapieEstimator: BaseEstimator, method: str) -> None:
     """Test that invalid methods raise errors."""
     mapie_estimator = MapieEstimator(method=method)
-    with pytest.raises(ValueError, match=r".*Invalid method.*"):
+    with pytest.raises(
+        ValueError, match="(Invalid method.)|(Invalid conformity score.)*"
+    ):
         mapie_estimator.fit(X_toy, y_toy)
 
 

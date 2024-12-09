@@ -1665,7 +1665,9 @@ def test_method_error_in_fit(monkeypatch: Any, method: str) -> None:
     mapie_clf = MapieClassifier(
         method=method, random_state=random_state
     )
-    with pytest.raises(ValueError, match=r".*Invalid method.*"):
+    with pytest.raises(
+        ValueError, match=r".*(Invalid method.)|(Invalid conformity score.)*"
+    ):
         mapie_clf.fit(X_toy, y_toy)
 
 
@@ -1835,7 +1837,7 @@ def test_warning_not_all_label_in_calib() -> None:
         cv="prefit", random_state=random_state
     )
     with pytest.warns(
-        UserWarning, match=r".*WARNING: your calibration dataset.*"
+        UserWarning, match=r".*WARNING: your conformity dataset.*"
     ):
         mapie_clf.fit(X_mapie, y_mapie)
 

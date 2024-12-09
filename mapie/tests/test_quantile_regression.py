@@ -352,7 +352,7 @@ def test_wrong_alphas_types(alphas: float) -> None:
     """Checking for wrong type of alphas"""
     with pytest.raises(
         ValueError,
-        match=r".*Invalid alpha. Allowed values are float.*",
+        match=r".*Invalid confidence_level. Allowed values are float.*",
     ):
         mapie_reg = MapieQuantileRegressor(alpha=alphas)
         mapie_reg.fit(X_train, y_train, X_calib=X_calib, y_calib=y_calib)
@@ -363,7 +363,7 @@ def test_wrong_alphas(alphas: float) -> None:
     """Checking for alphas values that are too big according to all value."""
     with pytest.raises(
         ValueError,
-        match=r".*Invalid alpha. Allowed values are between .*",
+        match=r".*Invalid confidence_level. Allowed values are between .*",
     ):
         mapie_reg = MapieQuantileRegressor(alpha=alphas)
         mapie_reg.fit(X_train, y_train, X_calib=X_calib, y_calib=y_calib)
@@ -449,7 +449,7 @@ def test_estimators_not_in_list(est: RegressorMixin) -> None:
     """
     with pytest.raises(
         ValueError,
-        match=r".*The base model does not seem to be accepted by.*",
+        match=r".*The base model is not supported.*",
     ):
         mapie_reg = MapieQuantileRegressor(estimator=est)
         mapie_reg.fit(

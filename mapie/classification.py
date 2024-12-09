@@ -288,10 +288,10 @@ class MapieClassifier(BaseEstimator, ClassifierMixin):
                 )
             if n_classes > n_unique_y_labels:
                 warnings.warn(
-                    "WARNING: your calibration dataset has less labels"
+                    "WARNING: your conformity dataset has less labels"
                     + " than your training dataset (training"
                     + f" has {n_classes} unique labels while"
-                    + f" calibration have {n_unique_y_labels} unique labels"
+                    + f" conformity have {n_unique_y_labels} unique labels"
                 )
 
         else:

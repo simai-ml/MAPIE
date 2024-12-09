@@ -326,7 +326,7 @@ class BaseRegressionScore(BaseConformityScore, metaclass=ABCMeta):
         """
         if self.sym and optimize_beta:
             raise ValueError(
-                "Beta optimisation cannot be used with "
+                "Interval width minimization cannot be used with a "
                 + "symmetrical conformity score function."
             )
 

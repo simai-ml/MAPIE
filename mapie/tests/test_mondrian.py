@@ -242,7 +242,9 @@ def test_invalid_cv_fails(mapie_estimator_name, non_valid_cv):
             estimator=model, cv=non_valid_cv, **mapie_kwargs
         )
     )
-    with pytest.raises(ValueError, match=r".*estimator uses cv='prefit'*"):
+    with pytest.raises(
+        ValueError, match=r".*Mondrian can only be used if the underlying*"
+    ):
         mondrian_cp.fit(x, y, partition=partition)
 
 
