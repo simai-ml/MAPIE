@@ -16,10 +16,13 @@ def transform_confidence_level_to_alpha_list(
     return [1 - level for level in confidence_levels]
 
 
-def check_method_not_naive(method: str) -> None:
-    if method == "naive":
+def check_if_param_in_allowed_values(
+    param: str, param_name: str, allowed_values: list
+) -> None:
+    if param not in allowed_values:
         raise ValueError(
-            '"naive" method not available in MAPIE >= v1'
+            f"'{param}' option not valid for parameter '{param_name}'"
+            f"Available options are: {allowed_values}"
         )
 
 

@@ -16,7 +16,7 @@ from mapie_v1.conformity_scores._utils import (
     check_and_select_regression_conformity_score,
 )
 from mapie_v1._utils import transform_confidence_level_to_alpha_list, \
-    check_method_not_naive, check_cv_not_string, hash_X_y, \
+    check_if_param_in_allowed_values, check_cv_not_string, hash_X_y, \
     check_if_X_y_different_from_fit, make_intervals_single_if_single_alpha, \
     cast_point_predictions_to_ndarray
 
@@ -319,6 +319,8 @@ class CrossConformalRegressor:
     >>> intervals = regressor.predict_set(X_test)
     """
 
+    _VALID_METHODS = ["base", "plus", "minmax"]
+
     def __init__(
         self,
         estimator: RegressorMixin = LinearRegression(),
@@ -330,7 +332,11 @@ class CrossConformalRegressor:
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None
     ) -> None:
-        check_method_not_naive(method)
+        check_if_param_in_allowed_values(
+            method,
+            "method",
+            CrossConformalRegressor._VALID_METHODS
+        )
         check_cv_not_string(cv)
 
         self._mapie_regressor = MapieRegressor(
@@ -492,7 +498,7 @@ class CrossConformalRegressor:
     def predict(
         self,
         X: ArrayLike,
-        aggregation_method: Optional[str] = None,
+        aggregate_predictions: Optional[str] = None,
     ) -> NDArray:
         """
         Generates point predictions for the input data `X`:
@@ -505,7 +511,7 @@ class CrossConformalRegressor:
         X : ArrayLike
             Data features for generating point predictions.
 
-        aggregation_method : Optional[str], default=None
+        aggregate_predictions : Optional[str], default=None
             The method to aggregate predictions across folds. Options:
             - None: No aggregation, returns predictions from the estimator
             trained on the entire dataset
@@ -517,12 +523,12 @@ class CrossConformalRegressor:
         NDArray
             Array of point predictions, with shape `(n_samples,)`.
         """
-        if not aggregation_method:
+        if not aggregate_predictions:
             ensemble = False
         else:
             ensemble = True
-            self._mapie_regressor._check_agg_function(aggregation_method)
-            self._mapie_regressor.agg_function = aggregation_method
+            self._mapie_regressor._check_agg_function(aggregate_predictions)
+            self._mapie_regressor.agg_function = aggregate_predictions
 
         predictions = self._mapie_regressor.predict(
             X, alpha=None, ensemble=ensemble
@@ -599,21 +605,60 @@ class JackknifeAfterBootstrapRegressor:
     >>> intervals = regressor.predict_set(X_test)
     """
 
+    _VALID_METHODS = ["plus", "minmax"]
+    _VALID_AGGREGATION_METHODS = ["mean", "median"]
+
     def __init__(
         self,
         estimator: RegressorMixin = LinearRegression(),
         confidence_level: Union[float, List[float]] = 0.9,
         conformity_score: Union[str, BaseRegressionScore] = "absolute",
         method: str = "plus",
-        resampling: Union[int, Subsample] = 10,
+        resampling: Union[int, Subsample] = 30,
         aggregation_method: str = "mean",
         n_jobs: Optional[int] = None,
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
+        check_if_param_in_allowed_values(
+            method,
+            "method",
+            JackknifeAfterBootstrapRegressor._VALID_METHODS
+        )
+        check_if_param_in_allowed_values(
+            aggregation_method,
+            "aggregation_method",
+            JackknifeAfterBootstrapRegressor._VALID_AGGREGATION_METHODS
+        )
 
-        # Placeholder for the MapieRegressor instance to pass mypy checks
-        self._mapie_regressor = MapieRegressor(estimator=estimator,)
+        if isinstance(resampling, int):
+            cv = Subsample(n_resamplings=resampling)
+        elif isinstance(resampling, Subsample):
+            cv = resampling
+        else:
+            raise ValueError(
+                "resampling must be an integer or a Subsample instance"
+            )
+
+        self._mapie_regressor = MapieRegressor(
+            estimator=estimator,
+            method=method,
+            cv=cv,
+            n_jobs=n_jobs,
+            verbose=verbose,
+            agg_function=aggregation_method,
+            conformity_score=check_and_select_regression_conformity_score(
+                conformity_score
+            ),
+            random_state=random_state,
+        )
+
+        self._alphas = transform_confidence_level_to_alpha_list(
+            confidence_level
+        )
+
+        self._hashed_X_y: int = 0
+        self._sample_weight: Optional[NDArray] = None
 
     def fit(
         self,
@@ -641,12 +686,27 @@ class JackknifeAfterBootstrapRegressor:
         Self
             The fitted JackknifeAfterBootstrapRegressor instance.
         """
+        self._hashed_X_y = hash_X_y(X, y)
+
+        if fit_params:
+            fit_params_ = copy.deepcopy(fit_params)
+            self._sample_weight = fit_params_.pop("sample_weight", None)
+        else:
+            fit_params_ = {}
+
+        X, y, self._sample_weight, groups = self._mapie_regressor.init_fit(
+            X, y, self._sample_weight, fit_params=fit_params_
+        )
+
+        self._mapie_regressor.fit_estimator(
+            X, y, self._sample_weight
+        )
         return self
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X: ArrayLike,
+        y: ArrayLike,
         predict_params: Optional[dict] = None,
     ) -> Self:
         """
@@ -658,10 +718,10 @@ class JackknifeAfterBootstrapRegressor:
 
         Parameters
         ----------
-        X_conf : ArrayLike
+        X : ArrayLike
             Features for the calibration (conformity) data.
 
-        y_conf : ArrayLike
+        y : ArrayLike
             Target values for the calibration (conformity) data.
 
         predict_params : Optional[dict], default=None
@@ -674,11 +734,24 @@ class JackknifeAfterBootstrapRegressor:
             The JackknifeAfterBootstrapRegressor instance with
             calibrated prediction intervals.
         """
+
+        check_if_X_y_different_from_fit(X, y, self._hashed_X_y)
+        if not predict_params:
+            predict_params = {}
+
+        self._mapie_regressor.conformalize(
+            X,
+            y,
+            sample_weight=self._sample_weight,
+            predict_params=predict_params
+        )
+
         return self
 
     def predict_set(
         self,
         X: ArrayLike,
+        minimize_interval_width: bool = False,
         allow_infinite_bounds: bool = False,
     ) -> NDArray:
         """
@@ -700,7 +773,17 @@ class JackknifeAfterBootstrapRegressor:
             Prediction intervals of shape `(n_samples, 2)`,
             with lower and upper bounds for each sample.
         """
-        return np.ndarray(0)
+        _, intervals = self._mapie_regressor.predict(
+            X,
+            alpha=self._alphas,
+            optimize_beta=minimize_interval_width,
+            allow_infinite_bounds=allow_infinite_bounds
+        )
+
+        return make_intervals_single_if_single_alpha(
+            intervals,
+            self._alphas
+        )
 
     def predict(
         self,
@@ -715,18 +798,15 @@ class JackknifeAfterBootstrapRegressor:
         X : ArrayLike
             Data features for generating point predictions.
 
-        aggregation_method : str, default="mean"
-            The method to aggregate predictions across bootstrap samples.
-            Options:
-            - "mean": Returns the mean prediction across samples.
-            - "median": Returns the median prediction across samples.
-
         Returns
         -------
         NDArray
             Array of point predictions, with shape `(n_samples,)`.
         """
-        return np.ndarray(0)
+        predictions = self._mapie_regressor.predict(
+            X, alpha=None, ensemble=True
+        )
+        return cast_point_predictions_to_ndarray(predictions)
 
 
 class ConformalizedQuantileRegressor:

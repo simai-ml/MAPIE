@@ -133,7 +133,7 @@ params_test_cases_cross = [
             "confidence_level": 0.8,
             "conformity_score": "absolute",
             "cv": 4,
-            "aggregation_method": "median",
+            "aggregate_predictions": "median",
             "method": "base",
             "fit_params": {"sample_weight": sample_weight},
             "random_state": RANDOM_STATE,
@@ -193,7 +193,7 @@ params_test_cases_jackknife = [
         "v0": {
             "alpha": 0.2,
             "conformity_score": AbsoluteConformityScore(),
-            "cv": Subsample(n_resamplings=10, random_state=RANDOM_STATE),
+            "cv": Subsample(n_resamplings=15, random_state=RANDOM_STATE),
             "agg_function": "median",
             "ensemble": True,
             "method": "plus",
@@ -203,7 +203,9 @@ params_test_cases_jackknife = [
         "v1": {
             "confidence_level": 0.8,
             "conformity_score": "absolute",
-            "resampling": 10,
+            "resampling": Subsample(
+                n_resamplings=15, random_state=RANDOM_STATE
+            ),
             "aggregation_method": "median",
             "method": "plus",
             "fit_params": {"sample_weight": sample_weight},
@@ -215,8 +217,9 @@ params_test_cases_jackknife = [
             "estimator": positive_predictor,
             "alpha": [0.5, 0.5],
             "conformity_score": GammaConformityScore(),
-            "aggregation_method": "mean",
-            "cv": Subsample(n_resamplings=3,
+            "agg_function": "mean",
+            "ensemble": True,
+            "cv": Subsample(n_resamplings=20,
                             replace=True,
                             random_state=RANDOM_STATE),
             "method": "plus",
@@ -228,7 +231,7 @@ params_test_cases_jackknife = [
             "confidence_level": [0.5, 0.5],
             "aggregation_method": "mean",
             "conformity_score": "gamma",
-            "resampling": Subsample(n_resamplings=3,
+            "resampling": Subsample(n_resamplings=20,
                                     replace=True,
                                     random_state=RANDOM_STATE),
             "method": "plus",
@@ -239,15 +242,18 @@ params_test_cases_jackknife = [
     {
         "v0": {
             "alpha": 0.1,
-            "cv": Subsample(n_resamplings=10, random_state=RANDOM_STATE),
+            "cv": Subsample(n_resamplings=30, random_state=RANDOM_STATE),
             "method": "minmax",
-            "aggregation_method": "mean",
+            "agg_function": "mean",
+            "ensemble": True,
             "allow_infinite_bounds": True,
             "random_state": RANDOM_STATE,
         },
         "v1": {
             "confidence_level": 0.9,
-            "resampling": 10,
+            "resampling": Subsample(
+                n_resamplings=30, random_state=RANDOM_STATE
+            ),
             "method": "minmax",
             "aggregation_method": "mean",
             "allow_infinite_bounds": True,
