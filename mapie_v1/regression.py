@@ -45,7 +45,7 @@ class SplitConformalRegressor:
         The conformity score method used to calculate the conformity error.
         Valid options: see keys and values of the dictionnary
 :py:const:`mapie_v1.conformity_scores.REGRESSION_CONFORMITY_SCORES_STRING_MAP`.
-        See: TODO : reference conformity score classes or documentation
+        See :doc:`theoretical_description_conformity_scores`
 
         A custom score function inheriting from BaseRegressionScore may also
         be provided.
@@ -267,7 +267,7 @@ class CrossConformalRegressor:
         The conformity score method used to calculate the conformity error.
         Valid options: TODO : reference here the valid options, once the list
         has been be created during the implementation.
-        See: TODO : reference conformity score classes or documentation
+        See :doc:`theoretical_description_conformity_scores`
 
         A custom score function inheriting from BaseRegressionScore may also be
         provided.
@@ -561,22 +561,29 @@ class JackknifeAfterBootstrapRegressor:
         The conformity score method used to calculate the conformity error.
         Valid options: TODO : reference here the valid options, once the list
         has been be created during the implementation.
-        See: TODO : reference conformity score classes or documentation
+        See :doc:`theoretical_description_conformity_scores`
 
         A custom score function inheriting from BaseRegressionScore may also
         be provided.
 
     method : str, default="plus"
         The method used for jackknife-after-bootstrap prediction. Options are:
-        - "base": Based on the conformity scores from each bootstrap sample.
         - "plus": Based on the conformity scores from each bootstrap sample and
         the testing prediction.
         - "minmax": Based on the minimum and maximum conformity scores from
         each bootstrap sample.
 
-    n_bootstraps : int, default=100
-        The number of bootstrap resamples to generate for the
-        jackknife-after-bootstrap procedure.
+        Note: The "base" method is not mentioned in the conformal inference
+        literature for Jackknife after bootstrap strategies, hence not provided
+        here.
+
+    resampling : Union[int, Subsample], default=30
+        Number of bootstrap resamples or an instance of `Subsample` for
+        custom resampling strategy.
+
+    aggregation_method : str, default="mean"
+        Aggregation method for predictions across bootstrap samples.
+        Options: ["mean", "median"].
 
     n_jobs : Optional[int], default=None
         The number of jobs to run in parallel when applicable.
@@ -599,7 +606,10 @@ class JackknifeAfterBootstrapRegressor:
     Examples
     --------
     >>> regressor = JackknifeAfterBootstrapRegressor(
-    ...    estimator=LinearRegression(), confidence_level=0.9, n_bootstraps=8)
+    ...    estimator=LinearRegression(),
+    ...    confidence_level=0.9,
+    ...    resampling=8,
+    ...    aggregation_method="mean")
     >>> regressor.fit(X_train, y_train)
     >>> regressor.conformalize(X_conf, y_conf)
     >>> intervals = regressor.predict_set(X_test)
@@ -763,6 +773,10 @@ class JackknifeAfterBootstrapRegressor:
         X : ArrayLike
             Test data for prediction intervals.
 
+        minimize_interval_width : bool, default=False
+            If True, minimizes the width of prediction intervals while
+            maintaining coverage.
+
         allow_infinite_bounds : bool, default=False
             If True, allows intervals to include infinite bounds
             if required for coverage.
@@ -770,7 +784,7 @@ class JackknifeAfterBootstrapRegressor:
         Returns
         -------
         NDArray
-            Prediction intervals of shape `(n_samples, 2)`,
+            Prediction intervals of shape (n_samples, 2),
             with lower and upper bounds for each sample.
         """
         _, intervals = self._mapie_regressor.predict(
@@ -788,6 +802,7 @@ class JackknifeAfterBootstrapRegressor:
     def predict(
         self,
         X: ArrayLike,
+        ensemble: bool = False,
     ) -> NDArray:
         """
         Generates point predictions for the input data using the fitted model,
@@ -798,13 +813,20 @@ class JackknifeAfterBootstrapRegressor:
         X : ArrayLike
             Data features for generating point predictions.
 
+        ensemble : bool, default=False
+            If True, aggregates predictions across models fitted on each
+            bootstrap samples, this is using the aggregation method defined
+            during the initialization of the model.
+            If False, returns predictions from the estimator trained on the
+            entire dataset.
+
         Returns
         -------
         NDArray
             Array of point predictions, with shape `(n_samples,)`.
         """
         predictions = self._mapie_regressor.predict(
-            X, alpha=None, ensemble=True
+            X, alpha=None, ensemble=ensemble
         )
         return cast_point_predictions_to_ndarray(predictions)
 
