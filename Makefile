@@ -15,10 +15,14 @@ tests:
 	pytest -vs --doctest-modules mapie
 
 integration-tests-v1:
-	@pip install mapie --no-dependencies --target=./mapie_v1/integration_tests/$(mapie_v0_folder_name) >/dev/null 2>&1
+	@pip install git+https://github.com/scikit-learn-contrib/MAPIE@master --no-dependencies --target=./mapie_v1/integration_tests/$(mapie_v0_folder_name) >/dev/null 2>&1
 	@mv ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapie ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapiev0
 	@- export PYTHONPATH="${PYTHONPATH}:./mapie_v1/integration_tests/$(mapie_v0_folder_name)"; pytest -vs mapie_v1/integration_tests/tests  -k $(pattern)
 	@mv ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapiev0 ./mapie_v1/integration_tests/$(mapie_v0_folder_name)/mapie
+
+checks-v1-not-in-ci:
+	$(MAKE) v1-type-check
+	$(MAKE) integration-tests-v1 pattern=test
 
 coverage:
 	pytest -vs \
