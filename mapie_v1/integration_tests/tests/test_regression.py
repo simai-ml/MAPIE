@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Union, Dict, Tuple
+from typing import Optional, Union, Dict, Tuple, Type
 
 import numpy as np
 import pytest
@@ -8,6 +8,8 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.datasets import make_regression
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import QuantileRegressor
+from lightgbm import LGBMRegressor
 
 from mapie.subsample import Subsample
 from mapie._typing import ArrayLike
@@ -15,9 +17,11 @@ from mapie.conformity_scores import GammaConformityScore, \
     AbsoluteConformityScore
 from mapie_v1.regression import SplitConformalRegressor, \
     CrossConformalRegressor, \
-    JackknifeAfterBootstrapRegressor
+    JackknifeAfterBootstrapRegressor, \
+    ConformalizedQuantileRegressor
 
 from mapiev0.regression import MapieRegressor as MapieRegressorV0  # noqa
+from mapiev0.regression import MapieQuantileRegressor as MapieQuantileRegressorV0  # noqa
 from mapie_v1.conformity_scores._utils import \
     check_and_select_regression_conformity_score
 from mapie_v1.integration_tests.utils import (filter_params,
@@ -30,14 +34,14 @@ N_BOOTSTRAPS = 30
 
 
 X, y_signed = make_regression(
-    n_samples=50,
+    n_samples=100,
     n_features=10,
     noise=1.0,
     random_state=RANDOM_STATE
 )
 y = np.abs(y_signed)
 sample_weight = RandomState(RANDOM_STATE).random(len(X))
-groups = [0] * 10 + [1] * 10 + [2] * 10 + [3] * 10 + [4] * 10
+groups = [0] * 20 + [1] * 20 + [2] * 20 + [3] * 20 + [4] * 20
 positive_predictor = TransformedTargetRegressor(
     regressor=LinearRegression(),
     func=lambda y_: np.log(y_ + 1),
@@ -105,9 +109,9 @@ def test_intervals_and_predictions_exact_equality_split(
         "random_state": RANDOM_STATE,
     }
 
-    v0, v1 = initialize_models(cv, v0_params, v1_params)
-    compare_model_predictions_and_intervals(v0=v0,
-                                            v1=v1,
+    v0, v1 = select_models_by_strategy(cv)
+    compare_model_predictions_and_intervals(model_v0=v0,
+                                            model_v1=v1,
                                             X=X_split,
                                             y=y_split,
                                             v0_params=v0_params,
@@ -184,7 +188,7 @@ def test_intervals_and_predictions_exact_equality_cross(params_cross):
     v0_params = params_cross["v0"]
     v1_params = params_cross["v1"]
 
-    v0, v1 = initialize_models("cross", v0_params, v1_params)
+    v0, v1 = select_models_by_strategy("cross")
     compare_model_predictions_and_intervals(v0, v1, X, y, v0_params, v1_params)
 
 
@@ -264,58 +268,178 @@ params_test_cases_jackknife = [
 ]
 
 
+split_model = QuantileRegressor(
+                solver="highs-ds",
+                alpha=0.0,
+            )
+
+lgbm_models = []
+lgbm_alpha = 0.1
+for alpha_ in [lgbm_alpha / 2, (1 - (lgbm_alpha / 2)), 0.5]:
+    estimator_ = LGBMRegressor(
+        objective='quantile',
+        alpha=alpha_,
+    )
+    lgbm_models.append(estimator_)
+
+
 @pytest.mark.parametrize("params_jackknife", params_test_cases_jackknife)
 def test_intervals_and_predictions_exact_equality_jackknife(params_jackknife):
     v0_params = params_jackknife["v0"]
     v1_params = params_jackknife["v1"]
 
-    v0, v1 = initialize_models("jackknife", v0_params, v1_params)
+    v0, v1 = select_models_by_strategy("jackknife")
     compare_model_predictions_and_intervals(v0, v1, X, y, v0_params, v1_params)
 
 
-def initialize_models(
-    strategy_key: str,
-    v0_params: Dict,
-    v1_params: Dict,
-) -> Tuple[MapieRegressorV0, Union[
-    SplitConformalRegressor,
-    CrossConformalRegressor,
-    JackknifeAfterBootstrapRegressor
-]]:
+params_test_cases_quantile = [
+    {
+        "v0": {
+            "alpha": 0.2,
+            "cv": "split",
+            "method": "quantile",
+            "calib_size": 0.3,
+            "sample_weight": sample_weight,
+            "random_state": RANDOM_STATE,
+        },
+        "v1": {
+            "confidence_level": 0.8,
+            "prefit": False,
+            "test_size": 0.3,
+            "fit_params": {"sample_weight": sample_weight},
+            "random_state": RANDOM_STATE,
+        },
+    },
+    {
+        "v0": {
+            "estimator": lgbm_models,
+            "alpha": lgbm_alpha,
+            "cv": "prefit",
+            "method": "quantile",
+            "calib_size": 0.3,
+            "sample_weight": sample_weight,
+            "optimize_beta": True,
+            "random_state": RANDOM_STATE,
+        },
+        "v1": {
+            "estimator": lgbm_models,
+            "confidence_level": 1-lgbm_alpha,
+            "prefit": True,
+            "test_size": 0.3,
+            "fit_params": {"sample_weight": sample_weight},
+            "minimize_interval_width": True,
+            "random_state": RANDOM_STATE,
+        },
+    },
+    {
+        "v0": {
+            "estimator": split_model,
+            "alpha": 0.5,
+            "cv": "split",
+            "method": "quantile",
+            "calib_size": 0.3,
+            "allow_infinite_bounds": True,
+            "random_state": RANDOM_STATE,
+        },
+        "v1": {
+            "estimator": split_model,
+            "confidence_level": 0.5,
+            "prefit": False,
+            "test_size": 0.3,
+            "allow_infinite_bounds": True,
+            "random_state": RANDOM_STATE,
+        },
+    },
+    {
+        "v0": {
+            "alpha": 0.1,
+            "cv": "split",
+            "method": "quantile",
+            "calib_size": 0.3,
+            "random_state": RANDOM_STATE,
+            "symmetry": False
+        },
+        "v1": {
+            "confidence_level": 0.9,
+            "prefit": False,
+            "test_size": 0.3,
+            "random_state": RANDOM_STATE,
+            "symmetric_intervals": False,
+        },
+    },
+]
 
-    v1: Union[SplitConformalRegressor,
-              CrossConformalRegressor,
-              JackknifeAfterBootstrapRegressor]
+
+@pytest.mark.parametrize("params_quantile", params_test_cases_quantile)
+def test_intervals_and_predictions_exact_equality_quantile(params_quantile):
+    v0_params = params_quantile["v0"]
+    v1_params = params_quantile["v1"]
+
+    test_size = v1_params["test_size"] if "test_size" in v1_params else None
+    prefit = ("prefit" in v1_params) and v1_params["prefit"]
+
+    v0, v1 = select_models_by_strategy("quantile")
+    compare_model_predictions_and_intervals(model_v0=v0,
+                                            model_v1=v1,
+                                            X=X,
+                                            y=y,
+                                            v0_params=v0_params,
+                                            v1_params=v1_params,
+                                            test_size=test_size,
+                                            prefit=prefit,
+                                            random_state=RANDOM_STATE)
+
+
+def select_models_by_strategy(
+    strategy_key: str
+) -> Tuple[
+    Type[Union[MapieRegressorV0, MapieQuantileRegressorV0]],
+    Type[Union[
+        SplitConformalRegressor,
+        CrossConformalRegressor,
+        JackknifeAfterBootstrapRegressor,
+        ConformalizedQuantileRegressor
+    ]]
+]:
+
+    model_v0: Type[Union[MapieRegressorV0, MapieQuantileRegressorV0]]
+    model_v1: Type[Union[
+        SplitConformalRegressor,
+        CrossConformalRegressor,
+        JackknifeAfterBootstrapRegressor,
+        ConformalizedQuantileRegressor
+    ]]
 
     if strategy_key in ["split", "prefit"]:
-        v1_params = filter_params(SplitConformalRegressor.__init__, v1_params)
-        v1 = SplitConformalRegressor(**v1_params)
+        model_v1 = SplitConformalRegressor
+        model_v0 = MapieRegressorV0
 
     elif strategy_key == "cross":
-        v1_params = filter_params(CrossConformalRegressor.__init__, v1_params)
-        v1 = CrossConformalRegressor(**v1_params)
+        model_v1 = CrossConformalRegressor
+        model_v0 = MapieRegressorV0
 
     elif strategy_key == "jackknife":
-        v1_params = filter_params(
-            JackknifeAfterBootstrapRegressor.__init__,
-            v1_params
-        )
-        v1 = JackknifeAfterBootstrapRegressor(**v1_params)
+        model_v1 = JackknifeAfterBootstrapRegressor
+        model_v0 = MapieRegressorV0
+
+    elif strategy_key == "quantile":
+        model_v1 = ConformalizedQuantileRegressor
+        model_v0 = MapieQuantileRegressorV0
 
     else:
         raise ValueError(f"Unknown strategy key: {strategy_key}")
 
-    v0_params = filter_params(MapieRegressorV0.__init__, v0_params)
-    v0 = MapieRegressorV0(**v0_params)
-
-    return v0, v1
+    return model_v0, model_v1
 
 
 def compare_model_predictions_and_intervals(
-    v0: MapieRegressorV0,
-    v1: Union[SplitConformalRegressor,
-              CrossConformalRegressor,
-              JackknifeAfterBootstrapRegressor],
+    model_v0: Type[MapieRegressorV0],
+    model_v1: Type[Union[
+        SplitConformalRegressor,
+        CrossConformalRegressor,
+        JackknifeAfterBootstrapRegressor,
+        ConformalizedQuantileRegressor
+    ]],
     X: ArrayLike,
     y: ArrayLike,
     v0_params: Dict = {},
@@ -332,16 +456,28 @@ def compare_model_predictions_and_intervals(
     else:
         X_train, X_conf, y_train, y_conf = X, X, y, y
 
+    if prefit:
+        estimator = v0_params["estimator"]
+        if isinstance(estimator, list):
+            for single_estimator in estimator:
+                single_estimator.fit(X_train, y_train)
+        else:
+            estimator.fit(X_train, y_train)
+
+        v0_params["estimator"] = estimator
+        v1_params["estimator"] = estimator
+
+    v0_init_params = filter_params(model_v0.__init__, v0_params)
+    v1_init_params = filter_params(model_v1.__init__, v1_params)
+
+    v0 = model_v0(**v0_init_params)
+    v1 = model_v1(**v1_init_params)
+
     v0_fit_params = filter_params(v0.fit, v0_params)
     v1_fit_params = filter_params(v1.fit, v1_params)
     v1_conformalize_params = filter_params(v1.conformalize, v1_params)
 
     if prefit:
-        estimator = v0.estimator
-        estimator.fit(X_train, y_train)
-        v0.estimator = estimator
-        v1._mapie_regressor.estimator = estimator
-
         v0.fit(X_conf, y_conf, **v0_fit_params)
     else:
         v0.fit(X, y, **v0_fit_params)
