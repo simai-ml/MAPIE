@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Union, Dict, Tuple, Type
+from typing import Optional, Union, Dict, Type
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ from sklearn.datasets import make_regression
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import QuantileRegressor
-from lightgbm import LGBMRegressor
+from sklearn.ensemble import GradientBoostingRegressor
 
 from mapie.subsample import Subsample
 from mapie._typing import ArrayLike
@@ -109,16 +109,17 @@ def test_intervals_and_predictions_exact_equality_split(
         "random_state": RANDOM_STATE,
     }
 
-    v0, v1 = select_models_by_strategy(cv)
-    compare_model_predictions_and_intervals(model_v0=v0,
-                                            model_v1=v1,
-                                            X=X_split,
-                                            y=y_split,
-                                            v0_params=v0_params,
-                                            v1_params=v1_params,
-                                            test_size=test_size,
-                                            random_state=RANDOM_STATE,
-                                            prefit=prefit)
+    compare_model_predictions_and_intervals(
+        model_v0=MapieRegressorV0,
+        model_v1=SplitConformalRegressor,
+        X=X_split,
+        y=y_split,
+        v0_params=v0_params,
+        v1_params=v1_params,
+        test_size=test_size,
+        prefit=prefit,
+        random_state=RANDOM_STATE,
+    )
 
 
 params_test_cases_cross = [
@@ -185,11 +186,16 @@ params_test_cases_cross = [
 
 @pytest.mark.parametrize("params_cross", params_test_cases_cross)
 def test_intervals_and_predictions_exact_equality_cross(params_cross):
-    v0_params = params_cross["v0"]
-    v1_params = params_cross["v1"]
 
-    v0, v1 = select_models_by_strategy("cross")
-    compare_model_predictions_and_intervals(v0, v1, X, y, v0_params, v1_params)
+    compare_model_predictions_and_intervals(
+        model_v0=MapieRegressorV0,
+        model_v1=CrossConformalRegressor,
+        X=X,
+        y=y,
+        v0_params=params_cross["v0"],
+        v1_params=params_cross["v1"],
+        random_state=RANDOM_STATE,
+    )
 
 
 params_test_cases_jackknife = [
@@ -268,28 +274,37 @@ params_test_cases_jackknife = [
 ]
 
 
+@pytest.mark.parametrize("params_jackknife", params_test_cases_jackknife)
+def test_intervals_and_predictions_exact_equality_jackknife(params_jackknife):
+
+    compare_model_predictions_and_intervals(
+        model_v0=MapieRegressorV0,
+        model_v1=JackknifeAfterBootstrapRegressor,
+        X=X,
+        y=y,
+        v0_params=params_jackknife["v0"],
+        v1_params=params_jackknife["v1"],
+        random_state=RANDOM_STATE,
+    )
+
+
 split_model = QuantileRegressor(
                 solver="highs-ds",
                 alpha=0.0,
             )
 
-lgbm_models = []
-lgbm_alpha = 0.1
-for alpha_ in [lgbm_alpha / 2, (1 - (lgbm_alpha / 2)), 0.5]:
-    estimator_ = LGBMRegressor(
-        objective='quantile',
+gbr_models = []
+gbr_alpha = 0.1
+
+for alpha_ in [gbr_alpha / 2, (1 - (gbr_alpha / 2)), 0.5]:
+    estimator_ = GradientBoostingRegressor(
+        loss='quantile',
         alpha=alpha_,
+        n_estimators=100,
+        learning_rate=0.1,
+        max_depth=3
     )
-    lgbm_models.append(estimator_)
-
-
-@pytest.mark.parametrize("params_jackknife", params_test_cases_jackknife)
-def test_intervals_and_predictions_exact_equality_jackknife(params_jackknife):
-    v0_params = params_jackknife["v0"]
-    v1_params = params_jackknife["v1"]
-
-    v0, v1 = select_models_by_strategy("jackknife")
-    compare_model_predictions_and_intervals(v0, v1, X, y, v0_params, v1_params)
+    gbr_models.append(estimator_)
 
 
 params_test_cases_quantile = [
@@ -312,8 +327,7 @@ params_test_cases_quantile = [
     },
     {
         "v0": {
-            "estimator": lgbm_models,
-            "alpha": lgbm_alpha,
+            "estimator": gbr_models,
             "cv": "prefit",
             "method": "quantile",
             "calib_size": 0.3,
@@ -322,8 +336,7 @@ params_test_cases_quantile = [
             "random_state": RANDOM_STATE,
         },
         "v1": {
-            "estimator": lgbm_models,
-            "confidence_level": 1-lgbm_alpha,
+            "estimator": gbr_models,
             "prefit": True,
             "test_size": 0.3,
             "fit_params": {"sample_weight": sample_weight},
@@ -378,58 +391,17 @@ def test_intervals_and_predictions_exact_equality_quantile(params_quantile):
     test_size = v1_params["test_size"] if "test_size" in v1_params else None
     prefit = ("prefit" in v1_params) and v1_params["prefit"]
 
-    v0, v1 = select_models_by_strategy("quantile")
-    compare_model_predictions_and_intervals(model_v0=v0,
-                                            model_v1=v1,
-                                            X=X,
-                                            y=y,
-                                            v0_params=v0_params,
-                                            v1_params=v1_params,
-                                            test_size=test_size,
-                                            prefit=prefit,
-                                            random_state=RANDOM_STATE)
-
-
-def select_models_by_strategy(
-    strategy_key: str
-) -> Tuple[
-    Type[Union[MapieRegressorV0, MapieQuantileRegressorV0]],
-    Type[Union[
-        SplitConformalRegressor,
-        CrossConformalRegressor,
-        JackknifeAfterBootstrapRegressor,
-        ConformalizedQuantileRegressor
-    ]]
-]:
-
-    model_v0: Type[Union[MapieRegressorV0, MapieQuantileRegressorV0]]
-    model_v1: Type[Union[
-        SplitConformalRegressor,
-        CrossConformalRegressor,
-        JackknifeAfterBootstrapRegressor,
-        ConformalizedQuantileRegressor
-    ]]
-
-    if strategy_key in ["split", "prefit"]:
-        model_v1 = SplitConformalRegressor
-        model_v0 = MapieRegressorV0
-
-    elif strategy_key == "cross":
-        model_v1 = CrossConformalRegressor
-        model_v0 = MapieRegressorV0
-
-    elif strategy_key == "jackknife":
-        model_v1 = JackknifeAfterBootstrapRegressor
-        model_v0 = MapieRegressorV0
-
-    elif strategy_key == "quantile":
-        model_v1 = ConformalizedQuantileRegressor
-        model_v0 = MapieQuantileRegressorV0
-
-    else:
-        raise ValueError(f"Unknown strategy key: {strategy_key}")
-
-    return model_v0, model_v1
+    compare_model_predictions_and_intervals(
+        model_v0=MapieQuantileRegressorV0,
+        model_v1=ConformalizedQuantileRegressor,
+        X=X,
+        y=y,
+        v0_params=v0_params,
+        v1_params=v1_params,
+        test_size=test_size,
+        prefit=prefit,
+        random_state=RANDOM_STATE,
+    )
 
 
 def compare_model_predictions_and_intervals(
@@ -486,6 +458,9 @@ def compare_model_predictions_and_intervals(
     v1.conformalize(X_conf, y_conf, **v1_conformalize_params)
 
     v0_predict_params = filter_params(v0.predict, v0_params)
+    if 'alpha' in v0_init_params:
+        v0_predict_params.pop('alpha')
+
     v1_predict_params = filter_params(v1.predict, v1_params)
     v1_predict_set_params = filter_params(v1.predict_set, v1_params)
 
