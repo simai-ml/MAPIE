@@ -54,9 +54,11 @@ def check_if_X_y_different_from_fit(
 
 def make_intervals_single_if_single_alpha(
     intervals: NDArray,
-    alphas: List[float]
+    alphas: Union[float, List[float]]
 ) -> NDArray:
-    if len(alphas) == 1:
+    if isinstance(alphas, float):
+        return intervals[:, :, 0]
+    if isinstance(alphas, list) and len(alphas) == 1:
         return intervals[:, :, 0]
     return intervals
 

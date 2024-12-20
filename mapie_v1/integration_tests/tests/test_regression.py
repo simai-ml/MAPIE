@@ -10,6 +10,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import QuantileRegressor
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
 
 from mapie.subsample import Subsample
 from mapie._typing import ArrayLike
@@ -306,6 +307,13 @@ for alpha_ in [gbr_alpha / 2, (1 - (gbr_alpha / 2)), 0.5]:
     )
     gbr_models.append(estimator_)
 
+sample_weight_train = train_test_split(
+    X,
+    y,
+    sample_weight,
+    test_size=0.4,
+    random_state=RANDOM_STATE
+)[-2]
 
 params_test_cases_quantile = [
     {
@@ -313,15 +321,15 @@ params_test_cases_quantile = [
             "alpha": 0.2,
             "cv": "split",
             "method": "quantile",
-            "calib_size": 0.3,
+            "calib_size": 0.4,
             "sample_weight": sample_weight,
             "random_state": RANDOM_STATE,
         },
         "v1": {
             "confidence_level": 0.8,
             "prefit": False,
-            "test_size": 0.3,
-            "fit_params": {"sample_weight": sample_weight},
+            "test_size": 0.4,
+            "fit_params": {"sample_weight": sample_weight_train},
             "random_state": RANDOM_STATE,
         },
     },
@@ -330,7 +338,7 @@ params_test_cases_quantile = [
             "estimator": gbr_models,
             "cv": "prefit",
             "method": "quantile",
-            "calib_size": 0.3,
+            "calib_size": 0.2,
             "sample_weight": sample_weight,
             "optimize_beta": True,
             "random_state": RANDOM_STATE,
@@ -338,7 +346,7 @@ params_test_cases_quantile = [
         "v1": {
             "estimator": gbr_models,
             "prefit": True,
-            "test_size": 0.3,
+            "test_size": 0.2,
             "fit_params": {"sample_weight": sample_weight},
             "minimize_interval_width": True,
             "random_state": RANDOM_STATE,
@@ -418,12 +426,16 @@ def compare_model_predictions_and_intervals(
     v1_params: Dict = {},
     prefit: bool = False,
     test_size: Optional[float] = None,
+    sample_weight: Optional[ArrayLike] = None,
     random_state: int = 42,
 ) -> None:
 
     if test_size is not None:
         X_train, X_conf, y_train, y_conf = train_test_split_shuffle(
-            X, y, test_size=test_size, random_state=random_state
+            X,
+            y,
+            test_size=test_size,
+            random_state=random_state,
         )
     else:
         X_train, X_conf, y_train, y_conf = X, X, y, y
