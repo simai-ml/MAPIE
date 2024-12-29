@@ -13,6 +13,7 @@ v1-type-check:
 
 tests:
 	pytest -vs --doctest-modules mapie
+	pytest -vs --doctest-modules mapie_v1 --ignore=mapie_v1/integration_tests
 
 integration-tests-v1:
 	@pip install git+https://github.com/scikit-learn-contrib/MAPIE@master --no-dependencies --target=./mapie_v1/integration_tests/$(mapie_v0_folder_name) >/dev/null 2>&1
