@@ -29,79 +29,7 @@ In MAPIE v0.9, ``MapieRegressor`` managed all conformal regression methods under
 +--------------------+--------------------------------------------------------------------------+
 
 
-2. Key parameter changes
-------------------------
-
-``conformity_score``
-~~~~~~~~~~~~~~~~~~~~
-A parameter used to specify the scoring approach for evaluating model predictions.
-
-- **v0.9**: Only allowed custom objects derived from ``BaseRegressionScore``.
-- **v1**: Now accepts both strings (like ``"absolute"``) for predefined methods and custom ``BaseRegressionScore`` instances, simplifying usage.
-
-``confidence_level``
-~~~~~~~~~~~~~~~~~~~~
-Indicates the desired coverage probability of the prediction intervals.
-
-- **v0.9**: Specified as ``alpha`` during prediction, representing error rate.
-- **v1**: Replaced with ``confidence_level`` to denote the coverage rate directly. Set at model initialization, improving consistency and clarity. ``confidence_level`` is equivalent to ``1 - alpha``.
-
-``method``
-~~~~~~~~~~
-Specifies the approach for calculating prediction intervals, especially in advanced models like Cross Conformal and Jackknife After Bootstrap regressors.
-
-- **v0.9**: Part of ``MapieRegressor``. Configured for the main prediction process.
-- **v1**: Specific to ``CrossConformalRegressor`` and ``JackknifeAfterBootstrapRegressor``, indicating the interval calculation approach (``"base"``, ``"plus"``, or ``"minmax"``).
-
-``cv`` (includes ``groups``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The ``cv`` parameter manages the cross-validation configuration, accepting either an integer to indicate the number of data splits or a ``BaseCrossValidator`` object for custom data splitting.
-
-- **v0.9**: The ``cv`` parameter was included in ``MapieRegressor``, where it handled cross-validation. The option ``cv="prefit"`` was available for models that were already pre-trained.
-- **v1**: The ``cv`` parameter is now only present in ``CrossConformalRegressor``, with the ``prefit`` option removed. Additionally, the ``groups`` parameter was removed from the ``fit`` method, allowing groups to be directly passed to ``cv`` for processing.
-
-``prefit``
-~~~~~~~~~~
-Controls whether the model has been pre-fitted before applying conformal prediction.
-
-- **v0.9**: Indicated through ``cv="prefit"`` in ``MapieRegressor``.
-- **v1**: ``prefit`` is now a separate boolean parameter, allowing explicit control over whether the model has been pre-fitted before applying conformal methods.
-
-``fit_params`` (includes ``sample_weight``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Dictionary of parameters specifically used during training, such as ``sample_weight`` in scikit-learn.
-
-- **v0.9**: Passed additional parameters in a flexible but less explicit manner.
-- **v1**: Now explicitly structured as a dedicated dictionary, ``fit_params``, ensuring parameters used during training are clearly defined and separated from other stages.
-
-``predict_params``
-~~~~~~~~~~~~~~~~~~
-Defines additional parameters exclusively for prediction.
-
-- **v0.9**: Passed additional parameters in a flexible but less explicit manner, sometimes mixed within training configurations.
-- **v1**: Now structured as a dedicated dictionary, ``predict_params``, to be used during calibration (``conformalize`` method) and prediction stages, ensuring no overlap with training parameters.
-
-``aggregation_method``
-~~~~~~~~~~~~~~~~~~~~~~
-The ``aggregation_method`` parameter defines how predictions from multiple conformal regressors are aggregated when making point predictions.
-
-- **v0.9**: Previously, the ``agg_function`` parameter specified the aggregation method, allowing options such as the mean or median of predictions. This was applicable only when using ensemble methods by setting ``ensemble=True`` in the ``predict`` method.
-- **v1**: The ``agg_function`` parameter has been renamed to ``aggregation_method`` for clarity. It now serves the same purpose in selecting an aggregation technique but is specified at prediction time rather than during class initialization. Additionally, the ``ensemble`` parameter has been removed, as ``aggregation_method`` is relevant only to the ``CrossConformalRegressor`` and ``JackknifeAfterBootstrapRegressor`` classes.
-
-``Other parameters``
-~~~~~~~~~~~~~~~~~~~~
-No more parameters with incorrect ``None`` defaults.
-
-- **v0.9**: Eg: ``estimator`` had a ``None`` default value, even though the actual default value is ``LinearRegression()``. This was the case for other parameters as well.
-- **v1**: All parameters now have explicit defaults.
-
-Some parameters' name have been improved for clarity:
-
-- ``optimize_beta`` -> ``minimize_interval_width``
-- ``symmetry``-> ``symmetric_intervals``
-
-
-3. Method changes
+2. Method changes
 -----------------
 
 In MAPIE v1, the conformal prediction workflow is more streamlined and modular, with distinct methods for training, calibration, and prediction. The calibration process in v1 consists of four steps.
@@ -137,82 +65,235 @@ MAPIE v1 introduces two distinct methods for prediction:
 - ``.predict()`` now focuses solely on producing point predictions.
 
 
+
+3. Key parameter changes
+------------------------
+
+``conformity_score``
+~~~~~~~~~~~~~~~~~~~~
+A parameter used to specify the scoring approach for evaluating model predictions.
+
+- **v0.9**: Only allowed custom objects derived from ``BaseRegressionScore``.
+- **v1**: Now accepts both strings (like ``"absolute"``) for predefined methods and custom ``BaseRegressionScore`` instances, simplifying usage.
+
+``confidence_level``
+~~~~~~~~~~~~~~~~~~~~
+Indicates the desired coverage probability of the prediction intervals.
+
+- **v0.9**: Specified as ``alpha`` during prediction, representing error rate.
+- **v1**: Replaced with ``confidence_level`` to denote the coverage rate directly. Set at model initialization, improving consistency and clarity. ``confidence_level`` is equivalent to ``1 - alpha``.
+
+``method``
+~~~~~~~~~~
+Specifies the approach for calculating prediction intervals, especially in advanced models like Cross Conformal and Jackknife After Bootstrap regressors.
+
+- **v0.9**: Part of ``MapieRegressor``. Configured for the main prediction process.
+- **v1**: Specific to ``CrossConformalRegressor`` and ``JackknifeAfterBootstrapRegressor``, indicating the interval calculation approach (``"base"``, ``"plus"``, or ``"minmax"``).
+
+``cv``
+~~~~~~~
+The ``cv`` parameter manages the cross-validation configuration, accepting either an integer to indicate the number of data splits or a ``BaseCrossValidator`` object for custom data splitting.
+
+- **v0.9**: The ``cv`` parameter was included in ``MapieRegressor``, where it handled cross-validation. The option ``cv="prefit"`` was available for models that were already pre-trained.
+- **v1**: The ``cv`` parameter is now only present in ``CrossConformalRegressor``, with the ``prefit`` option removed.
+
+``groups``
+~~~~~~~~~~~
+The ``groups`` parameter is used to specify group labels for cross-validation, ensuring that the same group is not present in both training and calibration sets.
+
+- **v0.9**: Passed as a parameter to the ``fit`` method.
+- **v1**: The ``groups`` present is now only present in ``CrossConformalRegressor``. It is passed in the ``.conformalize()`` method instead of the ``.fit()`` method. In other classes (like ``SplitConformalRegressor``), groups can be directly handled by the user during data splitting.
+
+``prefit``
+~~~~~~~~~~
+Controls whether the model has been pre-fitted before applying conformal prediction.
+
+- **v0.9**: Indicated through ``cv="prefit"`` in ``MapieRegressor``.
+- **v1**: ``prefit`` is now a separate boolean parameter, allowing explicit control over whether the model has been pre-fitted before applying conformal methods.
+
+``fit_params`` (includes ``sample_weight``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dictionary of parameters specifically used during training, such as ``sample_weight`` in scikit-learn.
+
+- **v0.9**: Passed additional parameters in a flexible but less explicit manner.
+- **v1**: Now explicitly structured as a dedicated dictionary, ``fit_params``, ensuring parameters used during training are clearly defined and separated from other stages.
+
+``predict_params``
+~~~~~~~~~~~~~~~~~~
+Defines additional parameters exclusively for prediction.
+
+- **v0.9**: Passed additional parameters in a flexible but less explicit manner, sometimes mixed within training configurations.
+- **v1**: Now structured as a dedicated dictionary, ``predict_params``, to be used during calibration (``conformalize`` method) and prediction stages, ensuring no overlap with training parameters.
+
+``agg_function``, ``aggregation_method``, ``aggregate_predictions``, and ``ensemble``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The aggregation method and technique for combining predictions in ensemble methods.
+
+- **v0.9**: Previously, the ``agg_function`` parameter had two usage: to aggregate predictions when setting ``ensemble=True`` in the ``predict`` method, and to specify the aggregation technique in ``JackknifeAfterBootstrapRegressor``.
+- **v1**: The ``agg_function`` parameter has been split into two distinct parameters: ``aggregate_predictions`` and ``aggregation_method``. ``aggregate_predictions`` is specific to ``CrossConformalRegressor``, and it specifies how predictions from multiple conformal regressors are aggregated when making point predictions. ``aggregation_method`` is specific to ``JackknifeAfterBootstrapRegressor``, and it specifies the aggregation technique for combining predictions across different bootstrap samples during calibration.
+
+``Other parameters``
+~~~~~~~~~~~~~~~~~~~~
+No more parameters with incorrect ``None`` defaults.
+
+- **v0.9**: Eg: ``estimator`` had a ``None`` default value, even though the actual default value is ``LinearRegression()``. This was the case for other parameters as well.
+- **v1**: All parameters now have explicit defaults.
+
+Some parameters' name have been improved for clarity:
+
+- ``optimize_beta`` -> ``minimize_interval_width``
+- ``symmetry``-> ``symmetric_intervals``
+
+
 4. Migration example: MAPIE v0.9 to MAPIE v1
---------------------------------------------
+----------------------------------------------------------------------------------------
 
 Below is a side-by-side example of code in MAPIE v0.9 and its equivalent in MAPIE v1 using the new modular classes and methods.
 
-MAPIE v0.9 code
-~~~~~~~~~~~~~~~
+Example 1: Split Conformal Prediction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+Description
+############
+Split conformal prediction is a widely used method for generating prediction intervals, it splits the data into training, calibration, and test sets. The model is trained on the training set, calibrated on the calibration set, and then used to make predictions on the test set. In `MAPIE v1`, the `SplitConformalRegressor` replaces the older `MapieRegressor` with a more modular design and simplified API.
+
+MAPIE v0.9 Code
+###############
+
+Below is a MAPIE v0.9 code for split conformal prediction in case of pre-fitted model:
+
+.. testcode::
 
     from sklearn.linear_model import LinearRegression
-    from mapie.estimator import MapieRegressor
-    from mapie.conformity_scores import GammaConformityScore
+    from mapie.regression import MapieRegressor
+    from mapie.conformity_scores import ResidualNormalisedScore
     from sklearn.model_selection import train_test_split
+    from sklearn.datasets import make_regression
 
-    # Step 1: Split data
-    X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y, test_size=0.4)
-    X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test, test_size=0.5)
+    X, y = make_regression(n_samples=100, n_features=2, noise=0.1)
 
-    # Step 2: Train the model on the training set
+    X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
+    X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
+
     prefit_model = LinearRegression().fit(X_train, y_train)
 
-    # Step 3: Initialize MapieRegressor with the prefit model and gamma conformity score
     v0 = MapieRegressor(
         estimator=prefit_model,
         cv="prefit",
-        conformity_score=GammaConformityScore()
+        conformity_score=ResidualNormalisedScore()
     )
 
-    # Step 4: Fit MAPIE on the calibration set
     v0.fit(X_conf, y_conf)
 
-    # Step 5: Make predictions with confidence intervals
     prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)[1][:, :, 0]
     prediction_points_v0 = v0.predict(X_test)
 
 Equivalent MAPIE v1 code
-~~~~~~~~~~~~~~~~~~~~~~~~
+########################
 
-.. code-block:: python
+Below is the equivalent MAPIE v1 code for split conformal prediction:
+
+.. testcode::
 
     from sklearn.linear_model import LinearRegression
-    from mapie.estimator import SplitConformalRegressor
-    from mapie.utils import conf_split
+    from sklearn.model_selection import train_test_split
+    from mapie_v1.regression import SplitConformalRegressor
+    from sklearn.datasets import make_regression
 
-    # Step 1: Split data with conf_split (returns X_train, y_train, X_conf, y_conf, X_test, y_test)
-    X_train, y_train, X_conf, y_conf, X_test, y_test = conf_split(X, y)
+    X, y = make_regression(n_samples=100, n_features=2, noise=0.1)
 
-    # Step 2: Train the model on the training set
+    X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
+    X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
+
     prefit_model = LinearRegression().fit(X_train, y_train)
 
-    # Step 3: Initialize SplitConformalRegressor with the prefit model, gamma conformity score, and prefit option
     v1 = SplitConformalRegressor(
         estimator=prefit_model,
-        confidence_level=0.9,       # equivalent to alpha=0.1 in v0.9
-        conformity_score="gamma",
+        confidence_level=0.9,
+        conformity_score="residual_normalized",
         prefit=True
     )
 
-    # Step 4: Calibrate the model with the conformalize method on the calibration set
+    # Here we're not using v1.fit(), because the provided model is already fitted
     v1.conformalize(X_conf, y_conf)
 
-    # Step 5: Make predictions with confidence intervals
     prediction_intervals_v1 = v1.predict_set(X_test)
     prediction_points_v1 = v1.predict(X_test)
 
+Example 2: Cross-Conformal Prediction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-5. Additional migration examples
---------------------------------
+Description
+############
 
-We will provide further migration examples :
+Cross-conformal prediction extends split conformal prediction by using multiple cross-validation folds to improve the efficiency of the prediction intervals. In MAPIE v1, `CrossConformalRegressor`` replaces the older `MapieRegressor`` for this purpose.
 
-- **Prefit Models**: Using ``SplitConformalRegressor`` with ``prefit=True``
-- **Non-Prefit Models**:
+MAPIE v0.9 code
+###############
 
-  - ``SplitConformalRegressor`` without ``prefit``
-  - ``CrossConformalRegressor`` with ``fit_params`` (e.g., ``sample_weight``) and ``predict_params``
-  - ``ConformalizedQuantileRegressor`` with ``symmetric_intervals=False``
-  - ``JackknifeAfterBootstrapRegressor`` with custom configurations
+Below is a MAPIE v0.9 code for cross-conformal prediction:
+
+.. testcode::
+
+    import numpy as np
+    from sklearn.ensemble import RandomForestRegressor
+    from mapie.regression import MapieRegressor
+    from sklearn.model_selection import train_test_split, GroupKFold
+    from sklearn.datasets import make_regression
+
+    X_full, y_full = make_regression(n_samples=100, n_features=2, noise=0.1)
+    X, X_test, y, y_test = train_test_split(X_full, y_full)
+    groups = np.random.randint(0, 10, X.shape[0])
+    sample_weight = np.random.rand(X.shape[0])
+
+    regression_model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=5
+    )
+
+    v0 = MapieRegressor(
+        estimator=regression_model,
+        cv=GroupKFold(),
+        agg_function="median",
+    )
+
+    v0.fit(X, y, sample_weight=sample_weight, groups=groups)
+
+    prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)[1][:, :, 0]
+    prediction_points_v0 = v0.predict(X_test, ensemble=True)
+
+Equivalent MAPIE v1 code
+########################
+
+Below is the equivalent MAPIE v1 code for cross-conformal prediction:
+
+.. testcode::
+
+    import numpy as np
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.model_selection import train_test_split, GroupKFold
+    from mapie_v1.regression import CrossConformalRegressor
+    from sklearn.datasets import make_regression
+
+    X_full, y_full = make_regression(n_samples=100, n_features=2, noise=0.1)
+    X, X_test, y, y_test = train_test_split(X_full, y_full)
+    groups = np.random.randint(0, 10, X.shape[0])
+    sample_weight = np.random.rand(X.shape[0])
+
+    regression_model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=5
+    )
+
+    v1 = CrossConformalRegressor(
+        estimator=regression_model,
+        confidence_level=0.9,
+        cv=GroupKFold(),
+        conformity_score="absolute",
+    )
+
+    v1.fit(X, y, fit_params={"sample_weight": sample_weight})
+    v1.conformalize(X, y, groups=groups)
+
+    prediction_intervals_v1 = v1.predict_set(X_test)
+    prediction_points_v1 = v1.predict(X_test, aggregate_predictions="median")

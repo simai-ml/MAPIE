@@ -45,7 +45,7 @@ class SplitConformalRegressor:
     conformity_score : Union[str, BaseRegressionScore], default="absolute"
         The conformity score method used to calculate the conformity error.
         Valid options: see keys and values of the dictionnary
-:py:const:`mapie_v1.conformity_scores.REGRESSION_CONFORMITY_SCORES_STRING_MAP`.
+        :py:const:`mapie_v1.conformity_scores.REGRESSION_CONFORMITY_SCORES_STRING_MAP`.
         See :ref:`theoretical_description_conformity_scores`
 
         A custom score function inheriting from BaseRegressionScore may also
@@ -80,16 +80,8 @@ class SplitConformalRegressor:
     >>> from sklearn.linear_model import Ridge
 
     >>> X, y = make_regression(n_samples=500, n_features=2, noise=1.0)
-    >>> X_train, X_test_initial, y_train, y_test_initial = train_test_split(
-    ...    X,
-    ...    y,
-    ...    test_size=0.2,
-    ... )
-    >>> X_conf, X_test, y_conf, y_test = train_test_split(
-    ...     X_test_initial,
-    ...     y_test_initial,
-    ...     test_size=0.5,
-    ... )
+    >>> X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
+    >>> X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
 
     >>> mapie_regressor = SplitConformalRegressor(
     ...     estimator=Ridge(),
@@ -337,16 +329,8 @@ class CrossConformalRegressor:
     >>> from sklearn.model_selection import train_test_split
     >>> from sklearn.linear_model import Ridge
 
-    >>> X_initial, y_initial = make_regression(
-    ... n_samples=500,
-    ... n_features=2,
-    ... noise=1.0
-    ... )
-    >>> X, X_test, y, y_test = train_test_split(
-    ...    X_initial,
-    ...    y_initial,
-    ...    test_size=0.2,
-    ... )
+    >>> X_full, y_full = make_regression(n_samples=500,n_features=2,noise=1.0)
+    >>> X, X_test, y, y_test = train_test_split(X_full, y_full)
 
     >>> mapie_regressor = CrossConformalRegressor(
     ...     estimator=Ridge(),
@@ -649,16 +633,8 @@ class JackknifeAfterBootstrapRegressor:
     >>> from sklearn.model_selection import train_test_split
     >>> from sklearn.linear_model import Ridge
 
-    >>> X_initial, y_initial = make_regression(
-    ... n_samples=500,
-    ... n_features=2,
-    ... noise=1.0
-    ... )
-    >>> X, X_test, y, y_test = train_test_split(
-    ...    X_initial,
-    ...    y_initial,
-    ...    test_size=0.2,
-    ... )
+    >>> X_full, y_full = make_regression(n_samples=500,n_features=2,noise=1.0)
+    >>> X, X_test, y, y_test = train_test_split(X_full, y_full)
 
     >>> mapie_regressor = JackknifeAfterBootstrapRegressor(
     ...     estimator=Ridge(),
@@ -967,16 +943,8 @@ class ConformalizedQuantileRegressor:
     >>> from sklearn.linear_model import QuantileRegressor
 
     >>> X, y = make_regression(n_samples=500, n_features=2, noise=1.0)
-    >>> X_train, X_test_initial, y_train, y_test_initial = train_test_split(
-    ...    X,
-    ...    y,
-    ...    test_size=0.2,
-    ... )
-    >>> X_conf, X_test, y_conf, y_test = train_test_split(
-    ...     X_test_initial,
-    ...     y_test_initial,
-    ...     test_size=0.5,
-    ... )
+    >>> X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
+    >>> X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
 
     >>> mapie_regressor = ConformalizedQuantileRegressor(
     ...     estimator=QuantileRegressor(),
