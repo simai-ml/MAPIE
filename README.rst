@@ -58,8 +58,8 @@ Here's a quick instantiation of MAPIE models for regression and classification p
 .. code:: python
 
     # Uncertainty quantification for regression problem
-    from mapie.regression import MapieRegressor
-    mapie_regressor = MapieRegressor(estimator=regressor, method='plus', cv=5)
+    from mapie_v1.regression import SplitConformalRegressor
+    mapie_regressor = SplitConformalRegressor(estimator=regressor)
 
 .. code:: python
 
@@ -105,26 +105,29 @@ As **MAPIE** is compatible with the standard scikit-learn API, you can see that 
 - How easy it is **to wrap your favorite scikit-learn-compatible model** around your model.
 - How easy it is **to follow the standard sequential** ``fit`` and ``predict`` process like any scikit-learn estimator.
 
-.. code:: python
+.. testcode::
 
     # Uncertainty quantification for regression problem
     import numpy as np
     from sklearn.linear_model import LinearRegression
     from sklearn.datasets import make_regression
     from sklearn.model_selection import train_test_split
+    from mapie_v1.regression import SplitConformalRegressor
 
-    from mapie.regression import MapieRegressor
-
-
-    X, y = make_regression(n_samples=500, n_features=1)
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5)
+    X, y = make_regression(n_samples=500, n_features=1, noise=20, random_state=59)
+    X_train_conf, X_test, y_train_conf, y_test = train_test_split(X, y, test_size=0.5)
+    X_train, X_conf, y_train, y_conf = train_test_split(X_train_conf, y_train_conf, test_size=0.5)
 
     regressor = LinearRegression()
+    mapie_regressor = SplitConformalRegressor(
+        regressor,
+        confidence_level=[0.95, 0.68],
+    )
+    mapie_regressor.fit(X_train, y_train)
+    mapie_regressor.conformalize(X_conf, y_conf)
 
-    mapie_regressor = MapieRegressor(estimator=regressor, method='plus', cv=5)
-
-    mapie_regressor = mapie_regressor.fit(X_train, y_train)
-    y_pred, y_pis = mapie_regressor.predict(X_test, alpha=[0.05, 0.32])
+    y_pred = mapie_regressor.predict(X_test)
+    y_pred_intervals = mapie_regressor.predict_set(X_test)
 
 .. code:: python
 

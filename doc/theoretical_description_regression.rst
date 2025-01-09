@@ -6,7 +6,7 @@
 Theoretical Description
 #######################
 
-The :class:`mapie.regression.MapieRegressor` class uses various
+The methods in `mapie_v1.regression` use various
 resampling methods based on the jackknife strategy
 recently introduced by Foygel-Barber et al. (2020) [1]. 
 They allow the user to estimate robust prediction intervals with any kind of

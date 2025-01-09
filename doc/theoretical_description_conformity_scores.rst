@@ -99,7 +99,8 @@ it is not proportional to the uncertainty.
 Key takeaways
 -------------
 
-- The absolute residual score is the basic conformity score and gives constant intervals. It is the one used by default by :class:`mapie.regression.MapieRegressor`.
+- The absolute residual score is the basic conformity score and gives constant intervals. It is the one used by default by regression methods
+  such as :class:`mapie_v1.regression.SplitConformalRegressor`.
 - The gamma conformity score adds a notion of adaptivity by giving intervals of different sizes
   and is proportional to the uncertainty.
 - The residual normalized score is a conformity score that requires an additional model
