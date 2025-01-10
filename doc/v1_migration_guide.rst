@@ -40,11 +40,11 @@ In v0.9, data splitting is handled by MAPIE.
 
 In v1, the data splitting is left to the user, with the exception of cross-conformal methods (``CrossConformalRegressor``). The user can split the data into training, conformalization, and test sets using scikit-learn's ``train_test_split`` or other methods.
 
-Step 2 & 3: Model training and conformalization
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In v0.9, the ``fit`` method handled both model training and conformalization.
+Step 2 & 3: Model training and conformalization (ie: calibration)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In v0.9, the ``fit`` method handled both model training and calibration.
 
-In v1.0: MAPIE separates between the training and conformalization:
+In v1.0: MAPIE separates between training and calibration. We decided to name the *calibration* step *conformalization*, to avoid confusion with probability calibration.
 
 - ``.fit()`` method:
   - In v1, ``fit`` only trains the model on training data, without handling conformalization.

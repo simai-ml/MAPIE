@@ -6,6 +6,13 @@
 Theoretical Description
 #######################
 
+Note: in theoretical parts of the documentation, we use the following terms employed in the scientific literature:
+
+- :math:`alpha` is equivalent to :math:`1-confidence_level`. It can be seen as a *risk level*
+- *calibrate* and *calibration*, are equivalent to *conformalize* and *conformalization*.
+
+—
+
 Three methods for multi-label uncertainty quantification have been implemented in MAPIE so far :
 Risk-Controlling Prediction Sets (RCPS) [1], Conformal Risk Control (CRC) [2] and Learn Then Test (LTT) [3].
 The difference between these methods is the way the conformity scores are computed. 

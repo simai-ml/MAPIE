@@ -6,6 +6,13 @@
 Theoretical Description
 #######################
 
+Note: in theoretical parts of the documentation, we use the following terms employed in the scientific literature:
+
+- :math:`alpha` is equivalent to :math:`1-confidence_level`. It can be seen as a *risk level*
+- *calibrate* and *calibration*, are equivalent to *conformalize* and *conformalization*.
+
+—
+
 This document provides detailed descriptions of various metrics used to evaluate the performance of predictive models, particularly focusing on their ability to estimate uncertainties and calibrate predictions accurately.
 
 1. General Metrics

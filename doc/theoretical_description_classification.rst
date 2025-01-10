@@ -6,6 +6,13 @@
 Theoretical Description
 #######################
 
+Note: in theoretical parts of the documentation, we use the following terms employed in the scientific literature:
+
+- :math:`alpha` is equivalent to :math:`1-confidence_level`. It can be seen as a *risk level*
+- *calibrate* and *calibration*, are equivalent to *conformalize* and *conformalization*.
+
+—
+
 Three methods for multi-class uncertainty quantification have been implemented in MAPIE so far :
 LAC (that stands for Least Ambiguous set-valued Classifier) [1], Adaptive Prediction Sets [2, 3] and Top-K [3].
 The difference between these methods is the way the conformity scores are computed. 

@@ -6,6 +6,13 @@
 Theoretical Description
 #######################
 
+Note: in theoretical parts of the documentation, we use the following terms employed in the scientific literature:
+
+- :math:`alpha` is equivalent to :math:`1-confidence_level`. It can be seen as a *risk level*
+- *calibrate* and *calibration*, are equivalent to *conformalize* and *conformalization*.
+
+—
+
 Mondrian conformal prediction (MCP) [1] is a method that allows to build prediction sets with a group-conditional
 coverage guarantee.  The coverage guarantee is given by:
 
