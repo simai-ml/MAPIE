@@ -130,6 +130,12 @@ The aggregation method and technique for combining predictions in ensemble metho
 - **v0.9**: Previously, the ``agg_function`` parameter had two usage: to aggregate predictions when setting ``ensemble=True`` in the ``predict`` method, and to specify the aggregation technique in ``JackknifeAfterBootstrapRegressor``.
 - **v1**: The ``agg_function`` parameter has been split into two distinct parameters: ``aggregate_predictions`` and ``aggregation_method``. ``aggregate_predictions`` is specific to ``CrossConformalRegressor``, and it specifies how predictions from multiple conformal regressors are aggregated when making point predictions. ``aggregation_method`` is specific to ``JackknifeAfterBootstrapRegressor``, and it specifies the aggregation technique for combining predictions across different bootstrap samples during conformalization.
 
+``random_state``
+~~~~~~~~~~~~~~~~~~
+
+- **v0.9**: This parameter was used to control the randomness of the data splitting.
+- **v1**: This parameter has been removed in cases where data splitting is now manual. Future evolutions may reintroduce it as a general purpose randomness control parameter.
+
 ``Other parameters``
 ~~~~~~~~~~~~~~~~~~~~
 No more parameters with incorrect ``None`` defaults.

@@ -71,7 +71,6 @@ params_test_cases_split = [
             "prefit": False,
             "test_size": 0.4,
             "fit_params": {"sample_weight": sample_weight_train},
-            "random_state": RANDOM_STATE,
         }
     },
     {
@@ -89,7 +88,6 @@ params_test_cases_split = [
             "confidence_level": [0.5, 0.5],
             "conformity_score": "gamma",
             "prefit": False,
-            "random_state": RANDOM_STATE,
         }
     },
     {
@@ -113,7 +111,6 @@ params_test_cases_split = [
                 random_state=RANDOM_STATE
             ),
             "allow_infinite_bounds": True,
-            "random_state": RANDOM_STATE,
         }
     },
     {
@@ -130,7 +127,6 @@ params_test_cases_split = [
             "estimator": positive_predictor,
             "confidence_level": 0.9,
             "conformity_score": GammaConformityScore(),
-            "random_state": RANDOM_STATE,
             "test_size": 0.3,
             "minimize_interval_width": True
         }
@@ -358,7 +354,6 @@ params_test_cases_quantile = [
             "prefit": False,
             "test_size": 0.4,
             "fit_params": {"sample_weight": sample_weight_train},
-            "random_state": RANDOM_STATE,
         },
     },
     {
@@ -379,7 +374,6 @@ params_test_cases_quantile = [
             "test_size": 0.2,
             "fit_params": {"sample_weight": sample_weight},
             "minimize_interval_width": True,
-            "random_state": RANDOM_STATE,
         },
     },
     {
@@ -398,7 +392,6 @@ params_test_cases_quantile = [
             "prefit": False,
             "test_size": 0.3,
             "allow_infinite_bounds": True,
-            "random_state": RANDOM_STATE,
         },
     },
     {
@@ -414,7 +407,6 @@ params_test_cases_quantile = [
             "confidence_level": 0.9,
             "prefit": False,
             "test_size": 0.3,
-            "random_state": RANDOM_STATE,
             "symmetric_intervals": False,
         },
     },
@@ -457,7 +449,7 @@ def compare_model_predictions_and_intervals(
     prefit: bool = False,
     test_size: Optional[float] = None,
     sample_weight: Optional[ArrayLike] = None,
-    random_state: int = 42,
+    random_state: int = RANDOM_STATE,
 ) -> None:
 
     if test_size is not None:

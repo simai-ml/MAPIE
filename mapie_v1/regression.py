@@ -62,10 +62,6 @@ class SplitConformalRegressor:
         Controls the verbosity level.
         Higher values increase the output details.
 
-    random_state : Optional[Union[int, np.random.RandomState]], default=None
-        A seed or random state instance to ensure reproducibility in any random
-        operations within the regressor.
-
     Notes
     -----
     This implementation currently uses a ShuffleSplit cross-validation scheme
@@ -100,7 +96,6 @@ class SplitConformalRegressor:
         prefit: bool = False,
         n_jobs: Optional[int] = None,
         verbose: int = 0,
-        random_state: Optional[Union[int, np.random.RandomState]] = None,
     ) -> None:
         check_estimator_fit_predict(estimator)
         self._estimator = estimator
@@ -118,7 +113,6 @@ class SplitConformalRegressor:
             n_jobs=n_jobs,
             verbose=verbose,
             conformity_score=self._conformity_score,
-            random_state=random_state,
         )
 
         self._alphas = transform_confidence_level_to_alpha_list(
