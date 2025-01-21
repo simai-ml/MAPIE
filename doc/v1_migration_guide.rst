@@ -51,7 +51,7 @@ In v1.0: MAPIE separates between training and calibration. We decided to name th
   - Additional fitting parameters, like ``sample_weight``, should be included in ``fit_params``, keeping this method focused on training alone.
 
 - ``.conformalize()`` method:
-  - This new method performs conformalization after fitting, using separate conformity data ``(X_conf, y_conf)``.
+  - This new method performs conformalization after fitting, using separate conformalization data ``(X_conformalize, y_conformalize)``.
   - ``predict_params`` can be passed here, allowing independent control over conformalization and prediction stages.
 
 Step 4: Making predictions (``predict`` and ``predict_set`` methods)
@@ -159,7 +159,7 @@ Example 1: Split Conformal Prediction
 
 Description
 ############
-Split conformal prediction is a widely used method for generating prediction intervals, it splits the data into training, conformity, and test sets. The model is trained on the training set, calibrated on the conformity set, and then used to make predictions on the test set. In `MAPIE v1`, the `SplitConformalRegressor` replaces the older `MapieRegressor` with a more modular design and simplified API.
+Split conformal prediction is a widely used method for generating prediction intervals, it splits the data into training, conformalization, and test sets. The model is trained on the training set, calibrated on the conformity set, and then used to make predictions on the test set. In `MAPIE v1`, the `SplitConformalRegressor` replaces the older `MapieRegressor` with a more modular design and simplified API.
 
 MAPIE v0.9 Code
 ###############

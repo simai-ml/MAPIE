@@ -45,8 +45,8 @@ Here, we generate one-dimensional noisy data that we fit with a linear model.
 
     regressor = LinearRegression()
     X, y = make_regression(n_samples=500, n_features=1, noise=20, random_state=59)
-    X_train_conf, X_test, y_train_conf, y_test = train_test_split(X, y, test_size=0.5)
-    X_train, X_conf, y_train, y_conf = train_test_split(X_train_conf, y_train_conf,
+    X_train_conformalize, X_test, y_train_conformalize, y_test = train_test_split(X, y, test_size=0.5)
+    X_train, X_conformalize, y_train, y_conformalize = train_test_split(X_train_conformalize, y_train_conformalize,
                                                         test_size=0.5)
 
     #  We follow a sequential ``fit``, ``conformalize``, and ``predict`` process.
@@ -60,7 +60,7 @@ Here, we generate one-dimensional noisy data that we fit with a linear model.
         confidence_level=[0.95, 0.68],
     )
     mapie_regressor.fit(X_train, y_train)
-    mapie_regressor.conformalize(X_conf, y_conf)
+    mapie_regressor.conformalize(X_conformalize, y_conformalize)
 
     y_pred = mapie_regressor.predict(X_test)
     y_pred_intervals = mapie_regressor.predict_set(X_test)

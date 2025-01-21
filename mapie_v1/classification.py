@@ -35,8 +35,8 @@ class SplitConformalClassifier:
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X_conformalize: ArrayLike,
+        y_conformalize: ArrayLike,
         predict_params: Optional[dict] = None,
     ) -> Self:
         return self
@@ -93,8 +93,8 @@ class CrossConformalClassifier:
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X_conformalize: ArrayLike,
+        y_conformalize: ArrayLike,
         predict_params: Optional[dict] = None
     ) -> Self:
         return self

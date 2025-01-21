@@ -65,7 +65,7 @@ class SplitConformalRegressor:
     Notes
     -----
     This implementation currently uses a ShuffleSplit cross-validation scheme
-    for splitting the conformity set. Future implementations may allow the use
+    for splitting the conformalization set. Future implementations may allow the use
     of groups.
 
     Examples
@@ -77,12 +77,14 @@ class SplitConformalRegressor:
 
     >>> X, y = make_regression(n_samples=500, n_features=2, noise=1.0)
     >>> X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
-    >>> X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
+    >>> X_conformalize, X_test, y_conformalize, y_test = train_test_split(
+    ... X_conf_test, y_conf_test
+    ... )
 
     >>> mapie_regressor = SplitConformalRegressor(
     ...     estimator=Ridge(),
     ...     confidence_level=0.95
-    ... ).fit(X_train, y_train).conformalize(X_conf, y_conf)
+    ... ).fit(X_train, y_train).conformalize(X_conformalize, y_conformalize)
 
     >>> prediction_points = mapie_regressor.predict(X_test)
     >>> prediction_intervals = mapie_regressor.predict_set(X_test)
@@ -155,8 +157,8 @@ class SplitConformalRegressor:
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X_conformalize: ArrayLike,
+        y_conformalize: ArrayLike,
         predict_params: Optional[dict] = None,
     ) -> Self:
         """
@@ -165,10 +167,10 @@ class SplitConformalRegressor:
 
         Parameters
         ----------
-        X_conf : ArrayLike
+        X_conformalize : ArrayLike
             Features for the conformity set.
 
-        y_conf : ArrayLike
+        y_conformalize : ArrayLike
             Target values for the conformity set.
 
         predict_params : Optional[dict], default=None
@@ -181,8 +183,8 @@ class SplitConformalRegressor:
             The conformalized SplitConformalRegressor instance.
         """
         predict_params = {} if predict_params is None else predict_params
-        self._mapie_regressor.fit(X_conf,
-                                  y_conf,
+        self._mapie_regressor.fit(X_conformalize,
+                                  y_conformalize,
                                   predict_params=predict_params)
 
         return self
@@ -907,7 +909,7 @@ class ConformalizedQuantileRegressor:
         Trains the base quantile regression estimator on the provided data.
         Not applicable if `prefit=True`.
 
-    conformalize(X_conf, y_conf, predict_params=None) -> Self
+    conformalize(X_conformalize, y_conformalize, predict_params=None) -> Self
         Calibrates the model on provided data, adjusting the prediction
         intervals to achieve the specified confidence levels.
 
@@ -938,12 +940,14 @@ class ConformalizedQuantileRegressor:
 
     >>> X, y = make_regression(n_samples=500, n_features=2, noise=1.0)
     >>> X_train, X_conf_test, y_train, y_conf_test = train_test_split(X, y)
-    >>> X_conf, X_test, y_conf, y_test = train_test_split(X_conf_test, y_conf_test)
+    >>> X_conformalize, X_test, y_conformalize, y_test = train_test_split(
+    ... X_conf_test, y_conf_test
+    ... )
 
     >>> mapie_regressor = ConformalizedQuantileRegressor(
     ...     estimator=QuantileRegressor(),
     ...     confidence_level=0.95,
-    ... ).fit(X_train, y_train).conformalize(X_conf, y_conf)
+    ... ).fit(X_train, y_train).conformalize(X_conformalize, y_conformalize)
 
     >>> prediction_points = mapie_regressor.predict(X_test)
     >>> prediction_intervals = mapie_regressor.predict_set(X_test)
@@ -1026,8 +1030,8 @@ class ConformalizedQuantileRegressor:
 
     def conformalize(
         self,
-        X_conf: ArrayLike,
-        y_conf: ArrayLike,
+        X_conformalize: ArrayLike,
+        y_conformalize: ArrayLike,
         predict_params: Optional[dict] = None,
     ) -> Self:
         """
@@ -1038,10 +1042,10 @@ class ConformalizedQuantileRegressor:
 
         Parameters
         ----------
-        X_conf : ArrayLike
+        X_conformalize : ArrayLike
             Features for the calibration (conformity) data.
 
-        y_conf : ArrayLike
+        y_conformalize : ArrayLike
             Target values for the calibration (conformity) data.
 
         predict_params : Optional[dict], default=None
@@ -1057,8 +1061,8 @@ class ConformalizedQuantileRegressor:
         self.predict_params = predict_params if predict_params else {}
 
         self._mapie_quantile_regressor.conformalize(
-            X_conf,
-            y_conf,
+            X_conformalize,
+            y_conformalize,
             **self.predict_params
         )
 

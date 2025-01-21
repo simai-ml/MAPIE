@@ -1,5 +1,5 @@
 ################################################################
-The calibration (or "conformity") set
+The calibration (or "conformalization") set
 ################################################################
 
 **MAPIE** is based on two types of techniques:
