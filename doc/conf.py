@@ -92,7 +92,7 @@ copyright = u"2022, Quantmetry"
 # built documents.
 #
 # The short X.Y version.
-version = "0.9.2"
+version = "1.0.0-alpha1"
 # The full version, including alpha/beta/rc tags.
 release = version
 

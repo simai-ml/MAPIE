@@ -5,7 +5,7 @@ authors:
   given-names: "Thibault"
   orcid: "https://orcid.org/0000-0000-0000-0000"
 title: "MAPIE - Model Agnostic Prediction Interval Estimator"
-version: 0.9.2
+version: 1.0.0-alpha1
 date-released: 2019-04-30
 url: "https://github.com/scikit-learn-contrib/MAPIE"
 preferred-citation:
