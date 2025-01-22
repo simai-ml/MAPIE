@@ -3,7 +3,7 @@ import codecs
 from setuptools import find_packages, setup
 
 DISTNAME = "MAPIE"
-VERSION = "0.9.2"
+VERSION = "1.0.0-alpha1"
 DESCRIPTION = (
     "A scikit-learn-compatible module "
     "for estimating prediction intervals."

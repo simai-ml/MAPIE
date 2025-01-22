@@ -105,7 +105,7 @@ As **MAPIE** is compatible with the standard scikit-learn API, you can see that 
 - How easy it is **to wrap your favorite scikit-learn-compatible model** around your model.
 - How easy it is **to follow the standard sequential** ``fit`` and ``predict`` process like any scikit-learn estimator.
 
-.. testcode::
+.. code:: python
 
     # Uncertainty quantification for regression problem
     import numpy as np
