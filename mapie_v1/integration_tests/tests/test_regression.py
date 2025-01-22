@@ -126,6 +126,7 @@ params_test_cases_split = [
         "v1": {
             "estimator": positive_predictor,
             "confidence_level": 0.9,
+            "prefit": False,
             "conformity_score": GammaConformityScore(),
             "test_size": 0.3,
             "minimize_interval_width": True
@@ -183,6 +184,8 @@ params_test_cases_cross = [
             "alpha": [0.5, 0.5],
             "conformity_score": GammaConformityScore(),
             "cv": LeaveOneOut(),
+            "agg_function": "mean",
+            "ensemble": True,
             "method": "plus",
             "optimize_beta": True,
             "random_state": RANDOM_STATE,
@@ -210,6 +213,7 @@ params_test_cases_cross = [
             "cv": GroupKFold(),
             "groups": groups,
             "method": "minmax",
+            "aggregate_predictions": None,
             "allow_infinite_bounds": True,
             "random_state": RANDOM_STATE,
         }
@@ -262,6 +266,7 @@ params_test_cases_jackknife = [
             "alpha": [0.5, 0.5],
             "conformity_score": GammaConformityScore(),
             "agg_function": "mean",
+            "ensemble": True,
             "cv": Subsample(n_resamplings=20,
                             replace=True,
                             random_state=RANDOM_STATE),
@@ -448,9 +453,15 @@ def compare_model_predictions_and_intervals(
     v1_params: Dict = {},
     prefit: bool = False,
     test_size: Optional[float] = None,
-    sample_weight: Optional[ArrayLike] = None,
     random_state: int = RANDOM_STATE,
 ) -> None:
+    if v0_params.get("alpha"):
+        if isinstance(v0_params["alpha"], float):
+            n_alpha = 1
+        else:
+            n_alpha = len(v0_params["alpha"])
+    else:
+        n_alpha = 1
 
     if test_size is not None:
         X_train, X_conf, y_train, y_conf = train_test_split_shuffle(
@@ -496,14 +507,17 @@ def compare_model_predictions_and_intervals(
         v0_predict_params.pop('alpha')
 
     v1_predict_params = filter_params(v1.predict, v1_params)
-    v1_predict_set_params = filter_params(v1.predict_set, v1_params)
+    v1_predict_interval_params = filter_params(v1.predict_interval, v1_params)
 
     v0_preds, v0_pred_intervals = v0.predict(X_conf, **v0_predict_params)
-    v1_pred_intervals = v1.predict_set(X_conf, **v1_predict_set_params)
-    if v1_pred_intervals.ndim == 2:
-        v1_pred_intervals = np.expand_dims(v1_pred_intervals, axis=2)
+    v1_preds, v1_pred_intervals = v1.predict_interval(
+        X_conf, **v1_predict_interval_params
+    )
 
-    v1_preds: ArrayLike = v1.predict(X_conf, **v1_predict_params)
+    v1_preds_using_predict: ArrayLike = v1.predict(X_conf, **v1_predict_params)
 
     np.testing.assert_array_equal(v0_preds, v1_preds)
     np.testing.assert_array_equal(v0_pred_intervals, v1_pred_intervals)
+    np.testing.assert_array_equal(v1_preds_using_predict, v1_preds)
+    if not v0_params.get("optimize_beta"):
+        assert v1_pred_intervals.shape == (len(X_conf), 2, n_alpha)

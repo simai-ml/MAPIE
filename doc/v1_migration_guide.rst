@@ -38,7 +38,7 @@ Step 1: Data splitting
 ~~~~~~~~~~~~~~~~~~~~~~
 In v0.9, data splitting is handled by MAPIE.
 
-In v1, the data splitting is left to the user, with the exception of cross-conformal methods (``CrossConformalRegressor``). The user can split the data into training, conformalization, and test sets using scikit-learn's ``train_test_split`` or other methods.
+In v1, the data splitting is left to the user, with the exception of cross-conformal methods (``CrossConformalRegressor`` and ``JackknifeAfterBootstrapRegressor``). The user can split the data into training, conformalization, and test sets using scikit-learn's ``train_test_split`` or other methods.
 
 Step 2 & 3: Model training and conformalization (ie: calibration)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -54,13 +54,12 @@ In v1.0: MAPIE separates between training and calibration. We decided to name th
   - This new method performs conformalization after fitting, using separate conformalization data ``(X_conformalize, y_conformalize)``.
   - ``predict_params`` can be passed here, allowing independent control over conformalization and prediction stages.
 
-Step 4: Making predictions (``predict`` and ``predict_set`` methods)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 4: Making predictions (``predict`` and ``predict_interval`` methods)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In MAPIE v0.9, both point predictions and prediction intervals were produced through the ``predict`` method.
 
-MAPIE v1 introduces two distinct methods for prediction:
-- ``.predict_set()`` is dedicated to generating prediction intervals (i.e., lower and upper bounds), clearly separating interval predictions from point predictions.
-- ``.predict()`` now focuses solely on producing point predictions.
+MAPIE v1 introduces a new method for prediction, ``.predict_interval()``, that behaves like v0.9 ``.predict(alpha=...)`` method. Namely, it predicts points and intervals.
+The ``.predict()`` method now focuses solely on producing point predictions.
 
 
 
@@ -107,7 +106,7 @@ The ``groups`` parameter is used to specify group labels for cross-validation, e
 Controls whether the model has been pre-fitted before applying conformal prediction.
 
 - **v0.9**: Indicated through ``cv="prefit"`` in ``MapieRegressor``.
-- **v1**: ``prefit`` is now a separate boolean parameter, allowing explicit control over whether the model has been pre-fitted before applying conformal methods.
+- **v1**: ``prefit`` is now a separate boolean parameter, allowing explicit control over whether the model has been pre-fitted before applying conformal methods. It is set by default to ``True`` for ``SplitConformalRegressor``, as we believe this will become MAPIE nominal usage.
 
 ``fit_params`` (includes ``sample_weight``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -125,10 +124,12 @@ Defines additional parameters exclusively for prediction.
 
 ``agg_function``, ``aggregation_method``, ``aggregate_predictions``, and ``ensemble``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The aggregation method and technique for combining predictions in ensemble methods.
+The aggregation method and technique for combining predictions in cross conformal methods.
 
 - **v0.9**: Previously, the ``agg_function`` parameter had two usage: to aggregate predictions when setting ``ensemble=True`` in the ``predict`` method, and to specify the aggregation technique in ``JackknifeAfterBootstrapRegressor``.
-- **v1**: The ``agg_function`` parameter has been split into two distinct parameters: ``aggregate_predictions`` and ``aggregation_method``. ``aggregate_predictions`` is specific to ``CrossConformalRegressor``, and it specifies how predictions from multiple conformal regressors are aggregated when making point predictions. ``aggregation_method`` is specific to ``JackknifeAfterBootstrapRegressor``, and it specifies the aggregation technique for combining predictions across different bootstrap samples during conformalization.
+- **v1**:
+  - The ``agg_function`` parameter has been split into two distinct parameters: ``aggregate_predictions`` and ``aggregation_method``. ``aggregate_predictions`` is specific to ``CrossConformalRegressor``, and it specifies how predictions from multiple conformal regressors are aggregated when making point predictions. ``aggregation_method`` is specific to ``JackknifeAfterBootstrapRegressor``, and it specifies the aggregation technique for combining predictions across different bootstrap samples during conformalization.
+  - Note that for both cross conformal methods, predictions points are now computed by default using mean aggregation. This is to avoid prediction points outside of prediction intervals in the default setting.
 
 ``random_state``
 ~~~~~~~~~~~~~~~~~~
@@ -189,7 +190,7 @@ Below is a MAPIE v0.9 code for split conformal prediction in case of pre-fitted 
 
     v0.fit(X_conf, y_conf)
 
-    prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)[1][:, :, 0]
+    prediction_points_v0, prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)
     prediction_points_v0 = v0.predict(X_test)
 
 Equivalent MAPIE v1 code
@@ -215,13 +216,12 @@ Below is the equivalent MAPIE v1 code for split conformal prediction:
         estimator=prefit_model,
         confidence_level=0.9,
         conformity_score="residual_normalized",
-        prefit=True
     )
 
     # Here we're not using v1.fit(), because the provided model is already fitted
     v1.conformalize(X_conf, y_conf)
 
-    prediction_intervals_v1 = v1.predict_set(X_test)
+    prediction_points_v1, prediction_intervals_v1 = v1.predict_interval(X_test)
     prediction_points_v1 = v1.predict(X_test)
 
 Example 2: Cross-Conformal Prediction
@@ -263,7 +263,7 @@ Below is a MAPIE v0.9 code for cross-conformal prediction:
 
     v0.fit(X, y, sample_weight=sample_weight, groups=groups)
 
-    prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)[1][:, :, 0]
+    prediction_points_v0, prediction_intervals_v0 = v0.predict(X_test, alpha=0.1)
     prediction_points_v0 = v0.predict(X_test, ensemble=True)
 
 Equivalent MAPIE v1 code
@@ -299,5 +299,5 @@ Below is the equivalent MAPIE v1 code for cross-conformal prediction:
     v1.fit(X, y, fit_params={"sample_weight": sample_weight})
     v1.conformalize(X, y, groups=groups)
 
-    prediction_intervals_v1 = v1.predict_set(X_test)
+    prediction_points_v1, prediction_intervals_v1 = v1.predict_interval(X_test)
     prediction_points_v1 = v1.predict(X_test, aggregate_predictions="median")

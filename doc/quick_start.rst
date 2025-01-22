@@ -58,12 +58,12 @@ Here, we generate one-dimensional noisy data that we fit with a linear model.
     mapie_regressor = SplitConformalRegressor(
         regressor,
         confidence_level=[0.95, 0.68],
+        prefit=False,
     )
     mapie_regressor.fit(X_train, y_train)
     mapie_regressor.conformalize(X_conformalize, y_conformalize)
 
-    y_pred = mapie_regressor.predict(X_test)
-    y_pred_intervals = mapie_regressor.predict_set(X_test)
+    y_pred, y_pred_intervals = mapie_regressor.predict_interval(X_test)
 
     #  MAPIE's ``predict`` method returns point predictions as a ``np.ndarray`` of shape ``(n_samples)``.
     #  The ``predict_set`` method returns prediction intervals as a ``np.ndarray`` of shape ``(n_samples, 2, 2)``

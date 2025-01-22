@@ -52,19 +52,13 @@ def check_if_X_y_different_from_fit(
         )
 
 
-def make_intervals_single_if_single_alpha(
-    intervals: NDArray,
-    alphas: Union[float, List[float]]
-) -> NDArray:
-    if isinstance(alphas, float):
-        return intervals[:, :, 0]
-    if isinstance(alphas, list) and len(alphas) == 1:
-        return intervals[:, :, 0]
-    return intervals
-
-
 def cast_point_predictions_to_ndarray(
     point_predictions: Union[NDArray, Tuple[NDArray, NDArray]]
 ) -> NDArray:
-    # This will be useless when we split .predict and .predict_set in back-end
     return cast(NDArray, point_predictions)
+
+
+def cast_predictions_to_ndarray_tuple(
+    predictions: Union[NDArray, Tuple[NDArray, NDArray]]
+) -> Tuple[NDArray, NDArray]:
+    return cast(Tuple[NDArray, NDArray], predictions)

@@ -18,7 +18,7 @@ class SplitConformalClassifier:
         estimator: ClassifierMixin = LogisticRegression(),
         confidence_level: Union[float, List[float]] = 0.9,
         conformity_score: Union[str, BaseClassificationScore] = "lac",
-        prefit: bool = False,
+        prefit: bool = True,
         n_jobs: Optional[int] = None,
         verbose: int = 0,
         random_state: Optional[Union[int, np.random.RandomState]] = None,

@@ -119,15 +119,14 @@ As **MAPIE** is compatible with the standard scikit-learn API, you can see that 
     X_train, X_conformalize, y_train, y_conformalize = train_test_split(X_train_conformalize, y_train_conformalize, test_size=0.5)
 
     regressor = LinearRegression()
+    regressor.fit(X_train, y_train)
     mapie_regressor = SplitConformalRegressor(
         regressor,
         confidence_level=[0.95, 0.68],
     )
-    mapie_regressor.fit(X_train, y_train)
     mapie_regressor.conformalize(X_conformalize, y_conformalize)
 
-    y_pred = mapie_regressor.predict(X_test)
-    y_pred_intervals = mapie_regressor.predict_set(X_test)
+    y_pred, y_pred_intervals = mapie_regressor.predict_interval(X_test)
 
 .. code:: python
 

@@ -1,5 +1,5 @@
 import copy
-from typing import Optional, Union, List, cast
+from typing import Optional, Union, List, cast, Tuple
 from typing_extensions import Self
 
 import numpy as np
@@ -18,8 +18,8 @@ from mapie_v1.conformity_scores._utils import (
 )
 from mapie_v1._utils import transform_confidence_level_to_alpha_list, \
     check_if_param_in_allowed_values, check_cv_not_string, hash_X_y, \
-    check_if_X_y_different_from_fit, make_intervals_single_if_single_alpha, \
-    cast_point_predictions_to_ndarray
+    check_if_X_y_different_from_fit, \
+    cast_point_predictions_to_ndarray, cast_predictions_to_ndarray_tuple
 
 
 class SplitConformalRegressor:
@@ -83,11 +83,11 @@ class SplitConformalRegressor:
 
     >>> mapie_regressor = SplitConformalRegressor(
     ...     estimator=Ridge(),
-    ...     confidence_level=0.95
+    ...     confidence_level=0.95,
+    ...     prefit=False,
     ... ).fit(X_train, y_train).conformalize(X_conformalize, y_conformalize)
 
-    >>> prediction_points = mapie_regressor.predict(X_test)
-    >>> prediction_intervals = mapie_regressor.predict_set(X_test)
+    >>> predicted_points, predicted_intervals = mapie_regressor.predict_interval(X_test)
     """
 
     def __init__(
@@ -95,7 +95,7 @@ class SplitConformalRegressor:
         estimator: RegressorMixin = LinearRegression(),
         confidence_level: Union[float, List[float]] = 0.9,
         conformity_score: Union[str, BaseRegressionScore] = "absolute",
-        prefit: bool = False,
+        prefit: bool = True,
         n_jobs: Optional[int] = None,
         verbose: int = 0,
     ) -> None:
@@ -189,15 +189,15 @@ class SplitConformalRegressor:
 
         return self
 
-    def predict_set(
+    def predict_interval(
         self,
         X: ArrayLike,
         minimize_interval_width: bool = False,
         allow_infinite_bounds: bool = False,
-    ) -> NDArray:
+    ) -> Tuple[NDArray, NDArray]:
         """
-        Generates prediction intervals for the input data `X` based on
-        conformity scores and confidence level(s).
+        Generates prediction intervals (and prediction points) for the input data `X`
+        based on conformity scores and confidence level(s).
 
         Parameters
         ----------
@@ -212,23 +212,18 @@ class SplitConformalRegressor:
 
         Returns
         -------
-        NDArray
-            An array containing the prediction intervals with shape
-            `(n_samples, 2)` if `confidence_level` is a single float, or
-            `(n_samples, 2, n_confidence_levels)` if `confidence_level` is a
-            list of floats.
+        Tuple[NDArray, NDArray]
+            Two arrays:
+            - Prediction points, of shape `(n_samples,)`
+            - Prediction intervals, of shape `(n_samples, 2, n_confidence_levels)`
         """
-        _, intervals = self._mapie_regressor.predict(
+        predictions = self._mapie_regressor.predict(
             X,
             alpha=self._alphas,
             optimize_beta=minimize_interval_width,
             allow_infinite_bounds=allow_infinite_bounds
         )
-
-        return make_intervals_single_if_single_alpha(
-            intervals,
-            self._alphas
-        )
+        return cast_predictions_to_ndarray_tuple(predictions)
 
     def predict(
         self,
@@ -310,14 +305,6 @@ class CrossConformalRegressor:
         A seed or random state instance to ensure reproducibility in any random
         operations within the regressor.
 
-    Returns
-    -------
-    NDArray
-        An array containing the prediction intervals with shape:
-        - `(n_samples, 2)` if `confidence_level` is a single float
-        - `(n_samples, 2, n_confidence_levels)` if `confidence_level`
-        is a list of floats.
-
     Examples
     --------
     >>> from mapie_v1.regression import CrossConformalRegressor
@@ -334,8 +321,7 @@ class CrossConformalRegressor:
     ...     cv=10
     ... ).fit(X, y).conformalize(X, y)
 
-    >>> prediction_points = mapie_regressor.predict(X_test)
-    >>> prediction_intervals = mapie_regressor.predict_set(X_test)
+    >>> predicted_points, predicted_intervals = mapie_regressor.predict_interval(X_test)
     """
 
     _VALID_METHODS = ["base", "plus", "minmax"]
@@ -470,20 +456,28 @@ class CrossConformalRegressor:
 
         return self
 
-    def predict_set(
+    def predict_interval(
         self,
         X: ArrayLike,
+        aggregate_predictions: Optional[str] = "mean",
         minimize_interval_width: bool = False,
         allow_infinite_bounds: bool = False,
-    ) -> NDArray:
+    ) -> Tuple[NDArray, NDArray]:
         """
-        Generates prediction intervals for the input data `X` based on
-        conformity scores and confidence level(s).
+        Generates prediction intervals (and prediction points) for the input data `X`
+        based on conformity scores and confidence level(s).
 
         Parameters
         ----------
         X : ArrayLike
             Data features for generating prediction intervals.
+
+        aggregate_predictions : Optional[str], default="mean"
+            The method to aggregate point predictions across folds. Options:
+            - None: No aggregation, returns predictions from the estimator
+            trained on the entire dataset
+            - "mean": Returns the mean prediction across folds.
+            - "median": Returns the median prediction across folds.
 
         minimize_interval_width : bool, default=False
             If True, attempts to minimize the interval width.
@@ -494,43 +488,39 @@ class CrossConformalRegressor:
 
         Returns
         -------
-        NDArray
-            An array containing the prediction intervals with shape
-            `(n_samples, 2)` if `confidence_level` is a single float, or
-            `(n_samples, 2, n_confidence_levels)` if `confidence_level` is a
-            list of floats.
+        Tuple[NDArray, NDArray]
+            Two arrays:
+            - Prediction points, of shape `(n_samples,)`
+            - Prediction intervals, of shape `(n_samples, 2, n_confidence_levels)`
         """
-        # TODO: factorize this function once the v0 backend is updated with
-        #  correct param names
-        _, intervals = self._mapie_regressor.predict(
+        ensemble = self._check_aggregate_predictions_and_return_ensemble(
+            aggregate_predictions
+        )
+        predictions = self._mapie_regressor.predict(
             X,
             alpha=self._alphas,
             optimize_beta=minimize_interval_width,
-            allow_infinite_bounds=allow_infinite_bounds
+            allow_infinite_bounds=allow_infinite_bounds,
+            ensemble=ensemble,
         )
-
-        return make_intervals_single_if_single_alpha(
-            intervals,
-            self._alphas
-        )
+        return cast_predictions_to_ndarray_tuple(predictions)
 
     def predict(
         self,
         X: ArrayLike,
-        aggregate_predictions: Optional[str] = None,
+        aggregate_predictions: Optional[str] = "mean",
     ) -> NDArray:
         """
         Generates point predictions for the input data `X`:
-        - using the model fitted on the entire dataset
-        - or if aggregation_method is provided, aggregating predictions from
-        the models fitted on each fold
+        - aggregating predictions from the models fitted on each fold
+        - or using the model fitted on the entire dataset if aggregate_predictions=None
 
         Parameters
         ----------
         X : ArrayLike
             Data features for generating point predictions.
 
-        aggregate_predictions : Optional[str], default=None
+        aggregate_predictions : Optional[str], default="mean"
             The method to aggregate predictions across folds. Options:
             - None: No aggregation, returns predictions from the estimator
             trained on the entire dataset
@@ -542,17 +532,24 @@ class CrossConformalRegressor:
         NDArray
             Array of point predictions, with shape `(n_samples,)`.
         """
+        ensemble = self._check_aggregate_predictions_and_return_ensemble(
+            aggregate_predictions
+        )
+        predictions = self._mapie_regressor.predict(
+            X, alpha=None, ensemble=ensemble
+        )
+        return cast_point_predictions_to_ndarray(predictions)
+
+    def _check_aggregate_predictions_and_return_ensemble(
+        self, aggregate_predictions: Optional[str]
+    ) -> bool:
         if not aggregate_predictions:
             ensemble = False
         else:
             ensemble = True
             self._mapie_regressor._check_agg_function(aggregate_predictions)
             self._mapie_regressor.agg_function = aggregate_predictions
-
-        predictions = self._mapie_regressor.predict(
-            X, alpha=None, ensemble=ensemble
-        )
-        return cast_point_predictions_to_ndarray(predictions)
+        return ensemble
 
 
 class JackknifeAfterBootstrapRegressor:
@@ -615,13 +612,6 @@ class JackknifeAfterBootstrapRegressor:
         A seed or random state instance to ensure reproducibility in any random
         operations within the regressor.
 
-    Returns
-    -------
-    NDArray
-        An array containing the prediction intervals with shape
-        `(n_samples, 2)`, where each row represents the lower and
-        upper bounds for each sample.
-
     Examples
     --------
     >>> from mapie_v1.regression import JackknifeAfterBootstrapRegressor
@@ -638,8 +628,7 @@ class JackknifeAfterBootstrapRegressor:
     ...     resampling=25,
     ... ).fit(X, y).conformalize(X, y)
 
-    >>> prediction_points = mapie_regressor.predict(X_test)
-    >>> prediction_intervals = mapie_regressor.predict_set(X_test)
+    >>> predicted_points, predicted_intervals = mapie_regressor.predict_interval(X_test)
     """
 
     _VALID_METHODS = ["plus", "minmax"]
@@ -785,20 +774,29 @@ class JackknifeAfterBootstrapRegressor:
 
         return self
 
-    def predict_set(
+    def predict_interval(
         self,
         X: ArrayLike,
+        ensemble: bool = True,
         minimize_interval_width: bool = False,
         allow_infinite_bounds: bool = False,
-    ) -> NDArray:
+    ) -> Tuple[NDArray, NDArray]:
         """
-        Computes prediction intervals for each sample in `X` based on
+        Generates prediction intervals (and prediction points) for the input data `X`
+        based on conformity scores and confidence level(s), following
         the jackknife-after-bootstrap framework.
 
         Parameters
         ----------
         X : ArrayLike
             Test data for prediction intervals.
+
+        ensemble : bool, default=True
+            If True, aggregates point predictions across models fitted on each
+            bootstrap samples, this is using the aggregation method defined
+            during the initialization of the model.
+            If False, returns predictions from the estimator trained on the
+            entire dataset.
 
         minimize_interval_width : bool, default=False
             If True, minimizes the width of prediction intervals while
@@ -810,37 +808,35 @@ class JackknifeAfterBootstrapRegressor:
 
         Returns
         -------
-        NDArray
-            Prediction intervals of shape (n_samples, 2),
-            with lower and upper bounds for each sample.
+        Tuple[NDArray, NDArray]
+            Two arrays:
+            - Prediction points, of shape `(n_samples,)`
+            - Prediction intervals, of shape `(n_samples, 2, n_confidence_levels)`
         """
-        _, intervals = self._mapie_regressor.predict(
+        predictions = self._mapie_regressor.predict(
             X,
             alpha=self._alphas,
             optimize_beta=minimize_interval_width,
-            allow_infinite_bounds=allow_infinite_bounds
+            allow_infinite_bounds=allow_infinite_bounds,
+            ensemble=ensemble,
         )
-
-        return make_intervals_single_if_single_alpha(
-            intervals,
-            self._alphas
-        )
+        return cast_predictions_to_ndarray_tuple(predictions)
 
     def predict(
         self,
         X: ArrayLike,
-        ensemble: bool = False,
+        ensemble: bool = True,
     ) -> NDArray:
         """
         Generates point predictions for the input data using the fitted model,
-        with optional aggregation over bootstrap samples.
+        with aggregation over bootstrap samples.
 
         Parameters
         ----------
         X : ArrayLike
             Data features for generating point predictions.
 
-        ensemble : bool, default=False
+        ensemble : bool, default=True
             If True, aggregates predictions across models fitted on each
             bootstrap samples, this is using the aggregation method defined
             during the initialization of the model.
@@ -895,41 +891,13 @@ class ConformalizedQuantileRegressor:
             * ``median quantile = 0.5``
 
     confidence_level : float default=0.9
-        The confidence level(s) for the prediction intervals, indicating the
+        The confidence level for the prediction intervals, indicating the
         desired coverage probability of the prediction intervals.
 
     prefit : bool, default=False
         If `True`, assumes the base estimators are already fitted.
         When set to `True`, the `fit` method cannot be called and the
         provided estimators should be pre-trained.
-
-    Methods
-    -------
-    fit(X_train, y_train, fit_params=None) -> Self
-        Trains the base quantile regression estimator on the provided data.
-        Not applicable if `prefit=True`.
-
-    conformalize(X_conformalize, y_conformalize, predict_params=None) -> Self
-        Calibrates the model on provided data, adjusting the prediction
-        intervals to achieve the specified confidence levels.
-
-    predict(X) -> NDArray
-        Generates point predictions for the input data `X`.
-
-    predict_set(X,
-                allow_infinite_bounds=False,
-                minimize_interval_width=False,
-                symmetric_intervals=True) -> NDArray
-        Generates prediction intervals for the input data `X`,
-        adjusted for desired scoverage based on the calibrated
-        quantile predictions.
-
-    Returns
-    -------
-    NDArray
-        An array containing the prediction intervals with shape
-        `(n_samples, 2)`,  where each row represents the lower and
-        upper bounds for each sample.
 
     Examples
     --------
@@ -949,8 +917,7 @@ class ConformalizedQuantileRegressor:
     ...     confidence_level=0.95,
     ... ).fit(X_train, y_train).conformalize(X_conformalize, y_conformalize)
 
-    >>> prediction_points = mapie_regressor.predict(X_test)
-    >>> prediction_intervals = mapie_regressor.predict_set(X_test)
+    >>> predicted_points, predicted_intervals = mapie_regressor.predict_interval(X_test)
     """
 
     def __init__(
@@ -1068,16 +1035,17 @@ class ConformalizedQuantileRegressor:
 
         return self
 
-    def predict_set(
+    def predict_interval(
         self,
         X: ArrayLike,
         allow_infinite_bounds: bool = False,
         minimize_interval_width: bool = False,
         symmetric_intervals: bool = True,
-    ) -> NDArray:
+    ) -> Tuple[NDArray, NDArray]:
         """
-        Computes prediction intervals for quantile regression based
-        on calibrated predictions.
+        Generates prediction intervals (and prediction points) for the input data `X`
+        based on conformity scores and confidence level(s), following
+        the conformalize quantile regression framework.
 
         Parameters
         ----------
@@ -1100,22 +1068,19 @@ class ConformalizedQuantileRegressor:
 
         Returns
         -------
-        NDArray
-            Prediction intervals with shape `(n_samples, 2)`, with lower
-            and upper bounds for each sample.
+        Tuple[NDArray, NDArray]
+            Two arrays:
+            - Prediction points, of shape `(n_samples,)`
+            - Prediction intervals, of shape `(n_samples, 2, 1)`
         """
-        _, intervals = self._mapie_quantile_regressor.predict(
+        predictions = self._mapie_quantile_regressor.predict(
             X,
             optimize_beta=minimize_interval_width,
             allow_infinite_bounds=allow_infinite_bounds,
             symmetry=symmetric_intervals,
             **self.predict_params
         )
-
-        return make_intervals_single_if_single_alpha(
-            intervals,
-            self._alpha
-        )
+        return cast_predictions_to_ndarray_tuple(predictions)
 
     def predict(
         self,
