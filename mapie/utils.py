@@ -5,15 +5,16 @@ from typing import Any, Iterable, Optional, Tuple, Union, cast
 
 import numpy as np
 from sklearn.base import ClassifierMixin, RegressorMixin
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import (BaseCrossValidator, BaseShuffleSplit,
                                      KFold, LeaveOneOut, ShuffleSplit,
                                      train_test_split)
 from sklearn.pipeline import Pipeline
 from sklearn.utils import _safe_indexing
 from sklearn.utils.multiclass import type_of_target
-from sklearn.utils.validation import (_check_sample_weight, _num_features,
-                                      check_is_fitted, column_or_1d)
+from sklearn.utils.validation import (_check_sample_weight, _check_y,
+                                      _num_features, _num_samples,
+                                      check_is_fitted, column_or_1d, indexable)
 
 from ._compatibility import np_quantile
 from ._typing import ArrayLike, NDArray
@@ -22,7 +23,8 @@ SPLIT_STRATEGIES = ["uniform", "quantile", "array split"]
 
 
 def check_null_weight(
-    sample_weight: Optional[ArrayLike], X: ArrayLike, y: ArrayLike
+    sample_weight: Optional[ArrayLike],
+    X: ArrayLike, y: ArrayLike
 ) -> Tuple[Optional[NDArray], ArrayLike, ArrayLike]:
     """
     Check sample weights and remove samples with null sample weights.
@@ -74,6 +76,77 @@ def check_null_weight(
         sample_weight = _safe_indexing(sample_weight, non_null_weight)
         sample_weight = cast(NDArray, sample_weight)
     return sample_weight, X, y
+
+
+def _sample_non_null_weight(
+    X: ArrayLike,
+    y: ArrayLike,
+    sample_weight: Optional[ArrayLike],
+    index: ArrayLike,
+    z: Optional[ArrayLike] = None,
+) -> Tuple[ArrayLike, ArrayLike, Optional[ArrayLike],
+           Optional[NDArray], ArrayLike]:
+    """
+    Perform several checks on class parameters.
+
+    Parameters
+    ----------
+    X: ArrayLike
+        Observed values.
+
+    y: ArrayLike
+        Target values.
+
+    sample_weight: Optional[NDArray] of shape (n_samples,)
+        Non-null sample weights.
+
+    index: ArrayLike
+        Indexes of the training set.
+
+    z: Optional[ArrayLike]
+        Exogenous varible
+
+    Returns
+    -------
+    Tuple[ArrayLike, ArrayLike, Optional[ArrayLike], Optional[NDArray]]
+        - ArrayLike of observed values
+        - ArrayLike of target values
+        - Optional[ArrayLike] of exogenous varible
+        - Optional[NDArray] of sample_weight
+        - ArrayLike of index of non-null weights
+    """
+    if _num_samples(index) == 0:
+        return np.array([]), np.array([]), np.array([]), np.array([]), index
+    X_select = _safe_indexing(X, index)
+    y_select = _safe_indexing(y, index)
+    z_select = _safe_indexing(z, index) if z is not None else None
+
+    if sample_weight is not None:
+        sample_weight_select = _safe_indexing(
+            sample_weight, index)
+    else:
+        sample_weight_select = None
+
+    index = _safe_indexing(index, sample_weight_select != 0)
+
+    X_select, y_select, z_select = indexable(X_select, y_select, z_select)
+    y_select = _check_y(y_select)
+
+    if sample_weight_select is not None:
+        sample_weight_select = _check_sample_weight(sample_weight_select,
+                                                    X_select)
+        non_null_weight = sample_weight_select != 0
+        X_select = _safe_indexing(X_select, non_null_weight)
+        y_select = _safe_indexing(y_select, non_null_weight)
+        if z_select is not None:
+            z_select = _safe_indexing(z_select, non_null_weight)
+        sample_weight_select = _safe_indexing(
+            sample_weight_select, non_null_weight)
+        sample_weight_select = cast(NDArray, sample_weight_select)
+
+    sample_weight_select = cast(Optional[NDArray], sample_weight_select)
+
+    return X_select, y_select, z_select, sample_weight_select, index
 
 
 def fit_estimator(
@@ -665,6 +738,48 @@ def check_estimator_fit_predict(
         )
 
 
+def check_estimator_regression(
+    estimator: Optional[RegressorMixin] = None,
+    cv: Optional[Union[str, BaseCrossValidator, BaseShuffleSplit]] = None,
+) -> RegressorMixin:
+    """
+    Check if estimator is ``None``,
+    and returns a ``LinearRegression`` instance if necessary.
+    If the ``cv`` attribute is ``"prefit"``,
+    check if estimator is indeed already fitted.
+
+    Parameters
+    ----------
+    estimator: Optional[RegressorMixin]
+        Estimator to check, by default ``None``.
+
+    Returns
+    -------
+    RegressorMixin
+        The estimator itself or a default ``LinearRegression`` instance.
+
+    Raises
+    ------
+    ValueError
+        If the estimator is not ``None``
+        and has no ``fit`` nor ``predict`` methods.
+
+    NotFittedError
+        If the estimator is not fitted
+        and ``cv`` attribute is ``"prefit"``.
+    """
+    if estimator is None:
+        estimator = LinearRegression()
+
+    check_estimator_fit_predict(estimator)
+    if cv == "prefit":
+        if isinstance(estimator, Pipeline):
+            check_is_fitted(estimator[-1])
+        else:
+            check_is_fitted(estimator)
+    return estimator
+
+
 def check_alpha_and_last_axis(vector: NDArray, alpha_np: NDArray):
     """Check when the dimension of vector is 3 that its last axis
     size is the same than the number of alphas.
@@ -775,31 +890,31 @@ def get_calib_set(
         (
             X_train, X_calib, y_train, y_calib
         ) = train_test_split(
-                X,
-                y,
-                test_size=calib_size,
-                random_state=random_state,
-                shuffle=shuffle,
-                stratify=stratify
+            X,
+            y,
+            test_size=calib_size,
+            random_state=random_state,
+            shuffle=shuffle,
+            stratify=stratify
         )
         sample_weight_train = sample_weight
         sample_weight_calib = None
     else:
         (
-                X_train,
-                X_calib,
-                y_train,
-                y_calib,
-                sample_weight_train,
-                sample_weight_calib,
+            X_train,
+            X_calib,
+            y_train,
+            y_calib,
+            sample_weight_train,
+            sample_weight_calib,
         ) = train_test_split(
-                X,
-                y,
-                sample_weight,
-                test_size=calib_size,
-                random_state=random_state,
-                shuffle=shuffle,
-                stratify=stratify
+            X,
+            y,
+            sample_weight,
+            test_size=calib_size,
+            random_state=random_state,
+            shuffle=shuffle,
+            stratify=stratify
         )
     X_train, X_calib = cast(ArrayLike, X_train), cast(ArrayLike, X_calib)
     y_train, y_calib = cast(ArrayLike, y_train), cast(ArrayLike, y_calib)
