@@ -6,6 +6,7 @@ on:
       - dev
       - main
       - master
+      - v1
   pull_request:
 
 jobs:
