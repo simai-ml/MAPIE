@@ -36,18 +36,24 @@ To install directly from the github repository :
 Let us start with a basic regression problem.
 Here, we generate one-dimensional noisy data that we fit with a linear model.
 
+..
+    Comment to developers: the following piece of code is duplicated in `examples/regression/1-quickstart/plot_toy_model.py`.
+    When updating it, please replicate the changes to this other file.
+
 .. testcode::
 
     import numpy as np
-    from sklearn.linear_model import LinearRegression
     from sklearn.datasets import make_regression
     from sklearn.model_selection import train_test_split
 
-    regressor = LinearRegression()
-    X, y = make_regression(n_samples=500, n_features=1, noise=20, random_state=59)
-    X_train_conformalize, X_test, y_train_conformalize, y_test = train_test_split(X, y, test_size=0.5)
-    X_train, X_conformalize, y_train, y_conformalize = train_test_split(X_train_conformalize, y_train_conformalize,
-                                                        test_size=0.5)
+    RANDOM_STATE = 42
+    X, y = make_regression(n_samples=500, n_features=1, noise=20, random_state=RANDOM_STATE)
+    X_train_conformalize, X_test, y_train_conformalize, y_test = train_test_split(
+        X, y, test_size=0.5, random_state=RANDOM_STATE
+    )
+    X_train, X_conformalize, y_train, y_conformalize = train_test_split(
+        X_train_conformalize, y_train_conformalize, test_size=0.5, random_state=RANDOM_STATE
+    )
 
     #  We follow a sequential ``fit``, ``conformalize``, and ``predict`` process.
     #  We set the confidence level to estimate prediction intervals at approximately one and two
@@ -56,7 +62,6 @@ Here, we generate one-dimensional noisy data that we fit with a linear model.
     from mapie_v1.regression import SplitConformalRegressor
 
     mapie_regressor = SplitConformalRegressor(
-        regressor,
         confidence_level=[0.95, 0.68],
         prefit=False,
     )
@@ -95,9 +100,9 @@ Here, we generate one-dimensional noisy data that we fit with a linear model.
         alpha=0.2
     )
     plt.title(
-        f"Target and effective coverages for "
+        f"Effective coverage for "
         f"confidence_level={confidence_level[0]:.2f}: {coverage_scores[0]:.3f}\n"
-        f"Target and effective coverages for "
+        f"Effective coverage for "
         f"confidence_level={confidence_level[1]:.2f}: {coverage_scores[1]:.3f}"
     )
     plt.show()
