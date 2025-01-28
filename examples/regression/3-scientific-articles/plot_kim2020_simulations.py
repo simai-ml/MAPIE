@@ -1,7 +1,9 @@
 """
-==================================================
-Reproducing the simulations from Kim et al. (2020)
-==================================================
+=================================================================================
+[Pre-v1] Reproducing the simulations from Kim et al. (2020)
+=================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
 
 :class:`~mapie.regression.MapieRegressor` is used to reproduce the simulations
 by Kim et al. (2020) [1] in their article which introduces the

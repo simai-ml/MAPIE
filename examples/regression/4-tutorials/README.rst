@@ -1,5 +1,7 @@
 .. _regression_examples_4:
 
+-----
+
 4. Tutorials
 ------------
 

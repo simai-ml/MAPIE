@@ -1,7 +1,9 @@
 """
-=================================================
-Make Conformal Predictive Distribution with MAPIE
-=================================================
+================================================================================
+[Pre-v1] Make Conformal Predictive Distribution with MAPIE
+================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
 """
 
 ##############################################################################

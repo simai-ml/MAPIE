@@ -1,7 +1,10 @@
 """
-======================================
-Tutorial for residual normalised score
-======================================
+=====================================================================
+[Pre-v1] Tutorial for residual normalised score
+=====================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 We will use the sklearn california housing dataset to understand how the
 residual normalised score works and show the multiple ways of using it.
 

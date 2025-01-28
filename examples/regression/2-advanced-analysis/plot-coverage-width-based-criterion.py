@@ -1,7 +1,10 @@
 """
-================================================
-Estimating coverage width based criterion
-================================================
+===============================================================================
+[Pre-v1] Estimating coverage width based criterion
+===============================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 This example uses :class:`~mapie.regression.MapieRegressor`,
 :class:`~mapie.quantile_regression.MapieQuantileRegressor` and
 :class:`~mapie.metrics` is used to estimate the coverage width

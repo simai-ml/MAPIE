@@ -1,7 +1,10 @@
 """
-====================================
-Plotting CQR with symmetric argument
-====================================
+===================================================================
+[Pre-v1] Plotting CQR with symmetric argument
+===================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 An example plot of :class:`~mapie.quantile_regression.MapieQuantileRegressor`
 illustrating the impact of the symmetry parameter.
 """

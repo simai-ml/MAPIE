@@ -1,7 +1,10 @@
 """
-================================================
-Coverage Validity with MAPIE for Regression Task
-================================================
+===============================================================================
+[Pre-v1] Coverage Validity with MAPIE for Regression Task
+===============================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 
 This example verifies that conformal claims are valid in the MAPIE package
 when using the CP prefit/split methods.

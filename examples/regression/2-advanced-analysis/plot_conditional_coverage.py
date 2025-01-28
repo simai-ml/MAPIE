@@ -1,7 +1,10 @@
 """
-===============================
-Estimating conditional coverage
-===============================
+==============================================================
+[Pre-v1] Estimating conditional coverage
+==============================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 This example uses :func:`~mapie.regression.MapieRegressor` with conformal
 scores that returns adaptive intervals i.e.
 (:class:`~mapie.conformity_scores.GammaConformityScore` and

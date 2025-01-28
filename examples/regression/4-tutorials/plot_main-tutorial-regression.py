@@ -1,7 +1,10 @@
 r"""
-===============================
-Tutorial for tabular regression
-===============================
+==============================================================
+[Pre-v1] Tutorial for tabular regression
+==============================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 
 In this tutorial, we compare the prediction intervals estimated by MAPIE on a
 simple, one-dimensional, ground truth function ``f(x) = x * sin(x)``.

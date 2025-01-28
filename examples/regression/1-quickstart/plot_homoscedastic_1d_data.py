@@ -1,7 +1,10 @@
 """
-==========================================================
-Estimate the prediction intervals of 1D homoscedastic data
-==========================================================
+=========================================================================================
+[Pre-v1] Estimate the prediction intervals of 1D homoscedastic data
+=========================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 
 :class:`~mapie.regression.MapieRegressor` and
 :class:`~mapie.quantile_regression.MapieQuantileRegressor`

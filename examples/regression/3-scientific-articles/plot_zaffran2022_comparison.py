@@ -1,7 +1,9 @@
 """
-======================================================================
-Reproduction of part of the paper experiments of Zaffran et al. (2022)
-======================================================================
+=====================================================================================================
+[Pre-v1] Reproduction of part of the paper experiments of Zaffran et al. (2022)
+=====================================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
 
 :class:`~mapie.regression.MapieTimeSeriesRegressor` is used to reproduce a
 part of the paper experiments of Zaffran et al. (2022) in their article [1]

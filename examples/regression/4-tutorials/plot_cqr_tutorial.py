@@ -1,7 +1,10 @@
 """
-====================================================
-Tutorial for conformalized quantile regression (CQR)
-====================================================
+===================================================================================
+[Pre-v1] Tutorial for conformalized quantile regression (CQR)
+===================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 
 We will use the sklearn california housing dataset as the base for the
 comparison of the different methods available on MAPIE. Two classes will

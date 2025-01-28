@@ -1,5 +1,7 @@
 .. _regression_examples_2:
 
+-----
+
 2. Advanced analysis
 --------------------
 

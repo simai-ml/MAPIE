@@ -1,7 +1,10 @@
 """
-======================================================
-Plotting MAPIE prediction intervals with a toy dataset
-======================================================
+=====================================================================================
+[Pre-v1] Plotting MAPIE prediction intervals with a toy dataset
+=====================================================================================
+**Note: we recently released MAPIE v1.0.0, which introduces breaking API changes.**
+**This notebook hasn't been updated to the new API yet.**
+
 An example plot of :class:`~mapie.regression.MapieRegressor` used
 in the Quickstart.
 """

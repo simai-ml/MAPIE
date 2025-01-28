@@ -1,5 +1,7 @@
 .. _regression_examples_3:
 
+-----
+
 3. Simulations from scientific articles
 ---------------------------------------
 
