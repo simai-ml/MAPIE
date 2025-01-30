@@ -886,9 +886,9 @@ class ConformalizedQuantileRegressor:
             to lower, upper, and median quantiles. These estimators should be
             pre-trained with consistent quantile settings:
 
-            * ``lower quantile = 1 - confidence_level / 2``
-            * ``upper quantile = confidence_level / 2``
-            * ``median quantile = 0.5``
+            * `lower quantile = (1 - confidence_level) / 2`
+            * `upper quantile = (1 + confidence_level) / 2`
+            * `median quantile = 0.5`
 
     confidence_level : float default=0.9
         The confidence level for the prediction intervals, indicating the
