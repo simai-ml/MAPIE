@@ -14,12 +14,14 @@ from mapie.metrics import regression_coverage_score
 from mapie_v1.regression import SplitConformalRegressor
 
 RANDOM_STATE = 42
+
 X, y = make_regression(n_samples=500, n_features=1, noise=20, random_state=RANDOM_STATE)
-X_train_conformalize, X_test, y_train_conformalize, y_test = train_test_split(
-    X, y, test_size=0.5, random_state=RANDOM_STATE
+
+X_train, X_test_conformalize, y_train, y_test_conformalize = train_test_split(
+    X, y, test_size=0.4,  random_state=RANDOM_STATE
 )
-X_train, X_conformalize, y_train, y_conformalize = train_test_split(
-    X_train_conformalize, y_train_conformalize, test_size=0.5, random_state=RANDOM_STATE
+X_test, X_conformalize, y_test, y_conformalize = train_test_split(
+    X_test_conformalize, y_test_conformalize, test_size=0.5, random_state=RANDOM_STATE
 )
 
 confidence_level = [0.95, 0.68]
