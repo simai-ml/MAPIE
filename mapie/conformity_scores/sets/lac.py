@@ -112,7 +112,7 @@ class LACConformityScore(BaseClassificationScore):
             Array of predictions.
         """
         y_pred_proba = estimator.predict(X, agg_scores)
-        y_pred_proba = check_proba_normalized(y_pred_proba, axis=1)
+        # y_pred_proba = check_proba_normalized(y_pred_proba, axis=1)
         if agg_scores != "crossval":
             y_pred_proba = np.repeat(
                 y_pred_proba[:, :, np.newaxis], len(alpha_np), axis=2

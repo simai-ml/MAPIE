@@ -78,7 +78,7 @@ class APSConformityScore(NaiveConformityScore):
             Array of predictions.
         """
         y_pred_proba = estimator.predict(X, agg_scores)
-        y_pred_proba = check_proba_normalized(y_pred_proba, axis=1)
+        # y_pred_proba = check_proba_normalized(y_pred_proba, axis=1)
         if agg_scores != "crossval":
             y_pred_proba = np.repeat(
                 y_pred_proba[:, :, np.newaxis], len(alpha_np), axis=2
@@ -161,6 +161,7 @@ class APSConformityScore(NaiveConformityScore):
         y_proba_true = np.take_along_axis(
             y_pred, y_enc.reshape(-1, 1), axis=1
         )
+        
         random_state = check_random_state(self.random_state)
         u = random_state.uniform(size=len(y_pred)).reshape(-1, 1)
         conformity_scores -= u * y_proba_true
