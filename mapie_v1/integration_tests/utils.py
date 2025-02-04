@@ -1,14 +1,15 @@
-from typing import Callable, Dict, Any, Optional
+from typing import Callable, Dict, Any, Optional, Tuple
+from mapie._typing import NDArray
 import inspect
 from sklearn.model_selection import ShuffleSplit
 
 
 def train_test_split_shuffle(
-    X,
-    y,
+    X: NDArray,
+    y: NDArray,
     test_size: float = 0.2,
     random_state: int = 42
-):
+) -> Tuple[Any, Any, Any, Any]:
 
     splitter = ShuffleSplit(n_splits=1,
                             test_size=test_size,

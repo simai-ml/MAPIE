@@ -9,7 +9,7 @@ type-check:
 	mypy mapie
 
 v1-type-check:
-	mypy mapie_v1 --exclude $(mapie_v0_folder_name)
+	mypy mapie_v1 --disallow-untyped-defs --exclude $(mapie_v0_folder_name)
 
 tests:
 	pytest -vs --doctest-modules mapie

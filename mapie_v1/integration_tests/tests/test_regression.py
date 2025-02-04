@@ -12,7 +12,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 
 from mapie.subsample import Subsample
-from mapie._typing import ArrayLike
+from mapie._typing import ArrayLike, NDArray
 from mapie.conformity_scores import GammaConformityScore, \
     AbsoluteConformityScore, ResidualNormalisedScore
 from mapie_v1.regression import SplitConformalRegressor, \
@@ -136,7 +136,7 @@ params_test_cases_split = [
 
 
 @pytest.mark.parametrize("params_split", params_test_cases_split)
-def test_intervals_and_predictions_exact_equality_split(params_split):
+def test_intervals_and_predictions_exact_equality_split(params_split: dict) -> None:
     v0_params = params_split["v0"]
     v1_params = params_split["v1"]
 
@@ -222,7 +222,7 @@ params_test_cases_cross = [
 
 
 @pytest.mark.parametrize("params_cross", params_test_cases_cross)
-def test_intervals_and_predictions_exact_equality_cross(params_cross):
+def test_intervals_and_predictions_exact_equality_cross(params_cross: dict) -> None:
 
     compare_model_predictions_and_intervals(
         model_v0=MapieRegressorV0,
@@ -313,7 +313,9 @@ params_test_cases_jackknife = [
 
 
 @pytest.mark.parametrize("params_jackknife", params_test_cases_jackknife)
-def test_intervals_and_predictions_exact_equality_jackknife(params_jackknife):
+def test_intervals_and_predictions_exact_equality_jackknife(
+    params_jackknife: dict
+) -> None:
 
     compare_model_predictions_and_intervals(
         model_v0=MapieRegressorV0,
@@ -419,7 +421,9 @@ params_test_cases_quantile = [
 
 
 @pytest.mark.parametrize("params_quantile", params_test_cases_quantile)
-def test_intervals_and_predictions_exact_equality_quantile(params_quantile):
+def test_intervals_and_predictions_exact_equality_quantile(
+    params_quantile: dict
+) -> None:
     v0_params = params_quantile["v0"]
     v1_params = params_quantile["v1"]
 
@@ -447,8 +451,8 @@ def compare_model_predictions_and_intervals(
         JackknifeAfterBootstrapRegressor,
         ConformalizedQuantileRegressor
     ]],
-    X: ArrayLike,
-    y: ArrayLike,
+    X: NDArray,
+    y: NDArray,
     v0_params: Dict = {},
     v1_params: Dict = {},
     prefit: bool = False,

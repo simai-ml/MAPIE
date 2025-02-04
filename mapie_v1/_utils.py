@@ -34,7 +34,7 @@ def check_if_param_in_allowed_values(
         )
 
 
-def check_cv_not_string(cv: Union[int, str, BaseCrossValidator]):
+def check_cv_not_string(cv: Union[int, str, BaseCrossValidator]) -> None:
     if isinstance(cv, str):
         raise ValueError(
             "'cv' string options not available in MAPIE >= v1"
