@@ -35,6 +35,16 @@
 .. toctree::
    :maxdepth: 2
    :hidden:
+   :caption: CONDITIONAL CP
+
+   theoretical_description_ccp
+   theoretical_description_calibrators
+   examples_regression/4-tutorials/plot_ccp_tutorial
+   examples_classification/4-tutorials/plot_ccp_class_tutorial
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
    :caption: BINARY CLASSIFICATION
 
    theoretical_description_binary_classification

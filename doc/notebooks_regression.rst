@@ -16,3 +16,6 @@ This section lists a series of Jupyter notebooks hosted on the MAPIE Github repo
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
+4. Leverage CCP method to have adaptative prediction intervals on Communities and Crime Dataset : `ccp_CandC_notebook <https://github.com/scikit-learn-contrib/MAPIE/tree/master/notebooks/regression/tutorial_ccp_CandC.ipynb>`_
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+

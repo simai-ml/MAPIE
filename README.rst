@@ -229,6 +229,8 @@ and with the financial support from Région Ile de France and Confiance.ai.
 
 [12] Angelopoulos, Anastasios N., Stephen, Bates, Emmanuel J. Candès, et al. "Learn Then Test: Calibrating Predictive Algorithms to Achieve Risk Control." (2022).
 
+[13] Isaac Gibbs, John J. Cherian, and Emmanuel J. Candès, "Conformal Prediction With Conditional Guarantees" (2023).
+
 
 📝 License
 ==========
