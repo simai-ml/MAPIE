@@ -1,17 +1,9 @@
-from typing import Union, TypeVar, Type
-from mapie.conformity_scores.interface import BaseConformityScore
+from typing import no_type_check
 from . import CONFORMITY_SCORES_STRING_MAP
 
-RegressionOrClassificationScore = TypeVar(
-    'RegressionOrClassificationScore',
-    bound=BaseConformityScore
-)
 
-
-def check_and_select_conformity_score(
-    conformity_score: Union[str, RegressionOrClassificationScore],
-    conformity_score_type: Type[RegressionOrClassificationScore]
-) -> RegressionOrClassificationScore:
+@no_type_check  # Cumbersome to type check
+def check_and_select_conformity_score(conformity_score, conformity_score_type):
     if isinstance(conformity_score, conformity_score_type):
         return conformity_score
     elif conformity_score in CONFORMITY_SCORES_STRING_MAP[conformity_score_type]:
