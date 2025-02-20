@@ -6,7 +6,7 @@
 Theoretical Description
 #######################
 
-The :class:`mapie.regression.MapieRegressor` class uses various
+The :class:`~mapie.regression.MapieRegressor` class uses various
 resampling methods based on the jackknife strategy
 recently introduced by Foygel-Barber et al. (2020) [1]. 
 They allow the user to estimate robust prediction intervals with any kind of
@@ -56,6 +56,8 @@ The figure below illustrates the naive method.
 .. image:: images/jackknife_naive.png
    :width: 200
    :align: center
+
+.. _theoretical_description_regression_standard: 
 
 2. The split method
 ===================
@@ -293,7 +295,7 @@ hypothesis". It means that the probability law of data should not change up to
 reordering.
 This hypothesis is not relevant in many cases, notably for dynamical times series.
 That is why a specific class is needed, namely
-:class:`mapie.time_series_regression.MapieTimeSeriesRegressor`.
+:class:`~mapie.time_series_regression.MapieTimeSeriesRegressor`.
 
 Its implementation looks like the jackknife+-after-bootstrap method. The
 leave-one-out (LOO) estimators are approximated thanks to a few boostraps.

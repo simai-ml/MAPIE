@@ -1,3 +1,6 @@
+
+.. _api:
+
 #########
 MAPIE API
 #########
@@ -109,9 +112,33 @@ Resampling
    subsample.BlockBootstrap
    subsample.Subsample
 
+New Split CP class
+===================
+
+.. autosummary::
+   :toctree: generated/
+   :template: class.rst
+
+   future.split.base.SplitCP
+   future.split.SplitCPRegressor
+   future.split.SplitCPClassifier
+
+Calibrators
+===========
+
+.. autosummary::
+   :toctree: generated/
+   :template: class.rst
+
+   future.calibrators.base.BaseCalibrator
+   future.calibrators.StandardCalibrator
+   future.calibrators.ccp.CCPCalibrator
+   future.calibrators.ccp.CustomCCP
+   future.calibrators.ccp.PolynomialCCP
+   future.calibrators.ccp.GaussianCCP
 
 Mondrian
-==========
+========
 
 .. autosummary::
    :toctree: generated/
