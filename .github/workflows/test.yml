@@ -56,7 +56,11 @@ jobs:
         run: make lint
       - name: Check static typing
         run: make type-check
-      - name: Test with pytest
+      - name: Test and coverage with pytest
         run: make coverage
       - name: Code coverage
         run: codecov
+      - name: v1 tests
+        run: make v1-tests
+      - name: v1 docstring tests
+        run: make v1-docstring-tests
